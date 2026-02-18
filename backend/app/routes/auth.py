@@ -83,6 +83,7 @@ async def sync_user_repos_on_login(user_id: str, github_token: str):
         ingest = IngestServiceClient()
 
         updates_queued = 0
+        failed_updates = 0
 
         for repo_name in repos_to_check:
             try:
@@ -108,6 +109,7 @@ async def sync_user_repos_on_login(user_id: str, github_token: str):
                             print(f"      ✅ Updated {repo_name}")
                         except Exception as e:
                             print(f"      ❌ Failed to update {repo_name}: {e}")
+                            failed_updates += 1
                     else:
                         print(f"   ✓ {repo_name}: Already up to date ({current_sha[:8]})")
                 else:
@@ -123,14 +125,17 @@ async def sync_user_repos_on_login(user_id: str, github_token: str):
                         print(f"      ✅ Re-indexed {repo_name}")
                     except Exception as e:
                         print(f"      ❌ Failed to re-index {repo_name}: {e}")
+                        failed_updates += 1
 
             except Exception as e:
                 print(f"   ⚠️  Could not check {repo_name}: {e}")
+                failed_updates += 1
 
         print(f"\n{'='*60}")
         print(f"✅ LOGIN SYNC COMPLETE")
         print(f"   Checked: {len(repos_to_check)} repos")
         print(f"   Updated: {updates_queued} repos")
+        print(f"   Failed:  {failed_updates} repos")
         print(f"{'='*60}\n")
 
     except Exception as e:
@@ -287,7 +292,7 @@ async def github_callback(
         key="session_token",
         value=session_token,
         max_age=60 * 60 * 24 * 7,
-        httponly=True,
+        httppy=True,
         secure=False,
         samesite="lax",
         domain=None
