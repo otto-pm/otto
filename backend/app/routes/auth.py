@@ -313,3 +313,8 @@ async def logout(request: Request) -> JSONResponse:
     response = JSONResponse(content={"message": "Logged out successfully"})
     response.delete_cookie("session_token")
     return response
+
+(github_username: str):
+    """Remove user from active webhook sessions."""
+    key = github_username.lower()
+    if key in _active_sessions:
