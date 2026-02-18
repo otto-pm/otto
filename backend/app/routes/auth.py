@@ -313,3 +313,7 @@ async def logout(request: Request) -> JSONResponse:
     response = JSONResponse(content={"message": "Logged out successfully"})
     response.delete_cookie("session_token")
     return response
+
+(github_username: str):
+    """Remove user from active sessions on logout."""
+    unregister_active_user(github_username)
