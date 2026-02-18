@@ -344,3 +344,10 @@ async def get_active_sessions() -> Dict:
             for session in _active_sessions.values()
         ]
     }
+
+signature_header = request.headers.get("X-Hub-Signature-256")
+    if not signature_header:
+        return False
+
+    try:
+        # Expected
