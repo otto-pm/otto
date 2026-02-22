@@ -10,7 +10,6 @@
 ## Table of Contents
 
 1. [Overview](#1-overview)
-   - 1.1 [Code Structure](#11-code-structure)
 2. [How to Generate a GitHub Personal Access Token](#2-how-to-generate-a-github-personal-access-token)
 3. [Testing the Deployed Pipeline](#3-testing-the-deployed-pipeline)
    - 3.1 Health Check
@@ -27,15 +26,12 @@
    - 3.12 Code Editing
 4. [Testing the DVC Pipeline](#4-testing-the-dvc-pipeline)
    - 4.1 Clone and Setup
-   - 4.2 Authenticating the Google Cloud Security Account
-   - 4.3 Set Environment Variables
-   - 4.4 View the Pipeline DAG
-   - 4.5 Run the Full DVC Pipeline
-   - 4.6 Run Individual DVC Stages
-   - 4.7 Inspect Stage Outputs
-   - 4.8 Verify DVC Tracking
-   - 4.9 [Data Versioning with DVC](#49-data-versioning-with-dvc)
-   - 4.10 [Running the Airflow DAG](#410-running-the-airflow-dag)
+   - 4.2 Initialize DVC
+   - 4.3 View the Pipeline DAG
+   - 4.4 Run the Full Pipeline
+   - 4.5 Run Individual Stages
+   - 4.6 Inspect Stage Outputs
+   - 4.7 Verify DVC Tracking
 5. [Running the Test Suite (69 Tests)](#5-running-the-test-suite-69-tests)
 6. [Data Validation & Monitoring](#6-data-validation--monitoring)
 7. [Pipeline Architecture Reference](#7-pipeline-architecture-reference)
@@ -56,128 +52,7 @@ Ingest → Chunk → Embed → Schema Validation → Anomaly Detection → Bias 
 
 The pipeline is **fully deployed on Google Cloud Run** — no local environment setup is required to test the core pipeline. You can test every endpoint using `curl` from your terminal with **any GitHub repository you have access to** (public or private).
 
-A separate section (Section 4) covers running the DVC pipeline and Airflow DAG locally if you'd like to verify the pipeline configuration and reproducibility.
-
----
-
-### 1.1 Code Structure
-
-Otto is organized into four top-level services, each deployed independently:
-
-```
-otto/
-|-- backend/                        # FastAPI auth + orchestration
-|   |-- app/
-|   |   |-- clients/
-|   |   |   +-- ingest_service.py        # Pipeline trigger client
-|   |   |-- dependencies/
-|   |   |-- models/
-|   |   |-- routes/
-|   |   |   |-- rag.py                   # RAG proxy to ingest-service
-|   |   |   +-- webhook.py               # GitHub webhook handler
-|   |   |-- services/
-|   |   +-- utils/
-|   +-- docs/
-|
-|-- ingest-service/                      # Core pipeline + RAG service
-|   |-- app/
-|   |   +-- routes/
-|   |       +-- pipeline.py              # Pipeline + RAG endpoints
-|   |-- src/
-|   |   |-- ingestion/
-|   |   |   +-- github_ingester.py
-|   |   |-- chunking/
-|   |   |   |-- enhanced_chunker.py
-|   |   |   |-- chunker.py
-|   |   |   +-- embedder.py
-|   |   |-- validation/
-|   |   |   |-- schema_validation.py
-|   |   |   |-- anomaly_detection.py
-|   |   |   +-- bias_detection.py
-|   |   |-- rag/
-|   |   |   |-- rag_services.py
-|   |   |   |-- vector_search.py
-|   |   |   +-- llm_client_gemini_api.py
-|   |   |-- github/
-|   |   |   +-- github_client.py
-|   |   +-- utils/
-|   |       |-- storage_utils.py
-|   |       |-- commit_tracker.py
-|   |       +-- file_manager.py
-|   +-- scripts/
-|       |-- ingest_repo.py, process_repo.py
-|       |-- embed_repo.py, rag_cli.py
-|       +-- analyze_chunk_quality.py
-|
-|-- frontend/                            # Next.js UI
-|   |-- app/
-|   |   |-- api/rag/                     # SSE streaming proxies
-|   |   |-- auth/
-|   |   +-- project/
-|   |-- components/                      # 60+ React components
-|   |-- hooks/
-|   |-- context/
-|   +-- utils/
-|
-|-- Data-Pipeline/                       # MLOps pipeline (DVC + Airflow)
-|   |-- dags/
-|   |   +-- airflow_dag.py         # Airflow DAG definition
-|   |-- scripts/
-|   |   +-- run_pipeline.py              # DVC/Airflow stage runner
-|   |-- tests/
-|   |   |-- conftest.py
-|   |   |-- test_acquisition.py
-|   |   |-- test_preprocessing.py
-|   |   +-- test_embedder.py
-|   |-- data/
-|   |   |-- raw/
-|   |   |   +-- metadata.json
-|   |   +-- processed/
-|   |       |-- chunks.jsonl
-|   |       |-- chunks_embedded.jsonl
-|   |       |-- schema_validation.json
-|   |       |-- anomaly_detection.json
-|   |       |-- bias_detection.json
-|   |       +-- validation_report.json
-|   |-- logs/
-|   |   +-- pipeline.log
-|   |-- dvc.yaml
-|   |-- dvc.lock
-|   +-- requirements.txt
-|
-|-- deliverables/scoping/
-|-- style-checker/
-+-- README.md, setup-env.sh, setup-env.bat
-```
-
-#### Service Responsibilities
-
-| Service | Purpose | Deployment |
-|---------|---------|------------|
-| **backend** | Handles authentication (GitHub OAuth), user/workspace management via Firestore, and proxies RAG requests to the ingest-service. Receives GitHub webhooks to trigger pipeline runs on push events. | Cloud Run (`us-east1`) |
-| **ingest-service** | Core pipeline engine. Ingests repos from GitHub, chunks code via Tree-sitter AST, generates embeddings via Vertex AI, runs validation, and serves all RAG endpoints (Q&A, docs generation, code completion, code editing, semantic search). | Cloud Run (`us-east1`) |
-| **frontend** | Next.js UI providing project management (board, backlog, roadmap) and an AI assistant panel that streams RAG responses via SSE proxies. | Vercel |
-| **Data-Pipeline** | MLOps layer with dual orchestration: Airflow DAG for scheduling and visualization, DVC for data versioning. Wraps the same production classes from `ingest-service` with no code duplication. | Local (Airflow + DVC) |
-
-#### How the Services Connect
-
-```
-User / GitHub Webhook
-        |
-        v
-    backend (auth + routing)
-        |
-        v
-    ingest-service (pipeline + RAG)
-        |
-        v
-    GCS (raw repos + processed chunks) <--- DVC (local reproducibility)
-        |
-        v
-    Vertex AI (embeddings) + Gemini (LLM)
-```
-
-The **backend** authenticates users and forwards requests to **ingest-service**, which runs the pipeline and serves RAG features. Both services read/write to the same GCS buckets. The **Data-Pipeline** layer imports the same source classes from `ingest-service` and targets the same GCS infrastructure, providing local reproducibility, data versioning, and pipeline visualization without duplicating code.
+A separate section (Section 4) covers running the DVC pipeline locally if you'd like to verify the DVC configuration and reproducibility.
 
 ---
 
@@ -535,33 +410,8 @@ pip install -r requirements.txt
 
 > **Important:** Always use `python -m pytest` and `python -m dvc` to ensure the venv Python is used, not your system/Anaconda Python.
 
-### 4.2 Authenticating the Google Cloud Security Account
+### 4.2 Set Environment Variables
 
-1. A service account key will be provided with this submission named sa-key.json. Add this here: `otto/Data-Pipeline/sa-key.json`
-2. Activate service account `gcloud auth activate-service-account --key-file=sa-key.json`
-3. Set otto-pm as the project `gcloud config set project otto-pm`
-4. Set the credentials for Python libraries:
-
-   **macOS/Linux:**
-```bash
-   export GOOGLE_APPLICATION_CREDENTIALS="sa-key.json"
-```
-
-   **Windows (PowerShell):**
-```powershell
-   $env:GOOGLE_APPLICATION_CREDENTIALS="sa-key.json"
-```
-
-   **Windows (CMD):**
-```cmd
-   set GOOGLE_APPLICATION_CREDENTIALS=sa-key.json
-```
-
-### 4.3 Set Environment Variables
-
-Replace `YOUR_GITHUB_TOKEN` with your personal access token.
-
-**macOS/Linux:**
 ```bash
 export GITHUB_TOKEN="YOUR_GITHUB_TOKEN"
 export GCP_PROJECT_ID="otto-pm"
@@ -570,22 +420,12 @@ export GCS_BUCKET_PROCESSED="otto-pm-processed-chunks"
 export VERTEX_LOCATION="us-east1"
 ```
 
-**Windows (PowerShell):**
-```powershell
-$env:GITHUB_TOKEN="YOUR_GITHUB_TOKEN"
-$env:GCP_PROJECT_ID="otto-pm"
-$env:GCS_BUCKET_RAW="otto-pm-raw-repos"
-$env:GCS_BUCKET_PROCESSED="otto-pm-processed-chunks"
-$env:VERTEX_LOCATION="us-east1"
-```
+### 4.3 Initialize DVC
 
-**Windows (CMD):**
-```cmd
-set GITHUB_TOKEN=YOUR_GITHUB_TOKEN
-set GCP_PROJECT_ID=otto-pm
-set GCS_BUCKET_RAW=otto-pm-raw-repos
-set GCS_BUCKET_PROCESSED=otto-pm-processed-chunks
-set VERTEX_LOCATION=us-east1
+DVC must be initialized with the `--subdir` flag because `Data-Pipeline/` is a subdirectory inside the main Otto git repo:
+
+```bash
+dvc init --subdir
 ```
 
 ### 4.4 View the Pipeline DAG
@@ -620,24 +460,38 @@ dvc dag
 +----------+
 | validate |
 +----------+
+     *
+     *
+     *
++---------+
+| anomaly |
++---------+
+     *
+     *
+     *
++------+
+| bias |
++------+
 ```
 
-The 4 stages and their dependencies are defined in `dvc.yaml`:
+The 6 stages and their dependencies are defined in `dvc.yaml`:
 
 | Stage | Script | Description |
 |-------|--------|-------------|
 | **ingest** | `scripts/run_pipeline.py ingest` | Downloads repo files from GitHub to GCS |
 | **chunk** | `scripts/run_pipeline.py chunk` | Parses code into chunks via Tree-sitter AST |
 | **embed** | `scripts/run_pipeline.py embed` | Generates 768-dim embeddings via Vertex AI |
-| **validate** | `scripts/run_pipeline.py validate` | Validates chunk schema, performs anomaly and bias detection |
+| **validate** | `scripts/schema_validation.py` | Validates chunk schema (6 expectations) |
+| **anomaly** | `scripts/anomaly_detection.py` | Detects distribution anomalies with Slack alerts |
+| **bias** | `scripts/bias_detection.py` | Checks for bias across 4 slicing strategies |
 
 ### 4.5 Run the Full DVC Pipeline
 
 ```bash
-dvc repro -f
+dvc repro
 ```
 
-This executes all 4 stages in dependency order. DVC tracks inputs and outputs and only reruns stages whose dependencies have changed. Anomaly, schema, and bias validation are all included in the validation step.
+This executes all 6 stages in dependency order. DVC tracks inputs and outputs and only reruns stages whose dependencies have changed.
 
 ### 4.6 Run Individual DVC Stages
 
@@ -655,6 +509,12 @@ dvc repro embed
 
 # Run only the validation stage
 dvc repro validate
+
+# Run only the anomaly detection stage
+dvc repro anomaly
+
+# Run only the bias detection stage
+dvc repro bias
 ```
 
 ### 4.7 Inspect Stage Outputs
@@ -668,11 +528,10 @@ ls data/raw/
 # Check that processed chunks exist
 ls data/processed/
 
-# Check validation reports and monitoring logs
-cat logs/pipeline.log
-cat data/processed/schema_validation.json
-cat data/processed/bias_detection.json
-cat data/processed/anomaly_detection.json
+# Check validation and monitoring logs
+cat logs/schema_validation.log
+cat logs/anomaly_detection.log
+cat logs/bias_detection.log
 ```
 
 ### 4.8 Verify DVC Tracking
@@ -687,150 +546,6 @@ dvc remote list
 # View the full dvc.yaml configuration
 cat dvc.yaml
 ```
-
-### 4.9 Data Versioning with DVC
-
-DVC tracks all pipeline inputs and outputs with content-addressable hashing. After each `dvc repro`, the `dvc.lock` file records the MD5 hash of every stage's dependencies and outputs. This file is committed to Git, ensuring a record of exactly what data was produced by each pipeline run.
-
-**DVC Remote:**
-```
-gs://otto-pm-processed-chunks/dvc-cache
-```
-
-**What Gets Versioned:**
-
-| File | Tracked By | Purpose |
-|------|-----------|---------|
-| `dvc.yaml` | Git | Pipeline DAG definition |
-| `dvc.lock` | Git | MD5 hashes of all inputs/outputs |
-| `.dvc/config` | Git | Remote storage configuration |
-| `data/raw/metadata.json` | DVC (GCS) | Ingested repository metadata |
-| `data/processed/chunks.jsonl` | DVC (GCS) | Parsed code chunks |
-| `data/processed/chunks_embedded.jsonl` | DVC (GCS) | Chunks with 768-dim embeddings |
-| `data/processed/*_detection.json` | DVC (GCS) | Validation reports |
-| `logs/pipeline.log` | DVC (GCS) | Stage-level execution log |
-
-**Key commands:**
-```bash
-dvc status    # check which stages are up-to-date
-dvc push      # upload versioned artifacts to GCS
-dvc pull      # download artifacts from GCS
-```
-
-### 4.10 Running the Airflow DAG
-
-An Airflow DAG is provided in `dags/otto_pipeline_dag.py` that orchestrates the same 4-stage pipeline. Airflow handles scheduling and DAG visualization; DVC continues to handle data versioning. The DAG calls the same `scripts/run_pipeline.py` used by DVC, so there is zero code duplication.
-
-> **Note:** Airflow must be installed in a separate virtual environment due to transitive dependency conflicts with the pipeline's Google Cloud libraries. This is standard practice — Airflow's own documentation recommends isolated installation.
-
-> **Windows Users:** Airflow does not natively support Windows. If you are on Windows, use [WSL (Windows Subsystem for Linux)](https://learn.microsoft.com/en-us/windows/wsl/install) and follow the macOS/Linux instructions below.
-
-#### Setup
-
-```bash
-cd otto/Data-Pipeline
-
-# Create a separate venv for Airflow
-python3.11 -m venv airflow-venv
-source airflow-venv/bin/activate
-
-# Install Airflow with constraints (prevents dependency conflicts)
-pip install "apache-airflow==2.10.4" \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.4/constraints-3.11.txt"
-
-# IMPORTANT: There is an error that will appear regarding protobuf,
-# this is not breaking and will still allow running airflow.
-
-# Install pipeline dependencies on top
-pip install google-cloud-storage==2.18.2 google-cloud-aiplatform==1.72.0 \
-  google-cloud-firestore==2.19.0 google-generativeai==0.8.3 \
-  tree-sitter tree-sitter-languages==1.10.2 PyGithub numpy jsonlines \
-  slack-sdk python-dotenv pyyaml tqdm
-```
-
-#### Initialize Airflow
-
-```bash
-export AIRFLOW_HOME=$(pwd)
-export AIRFLOW__CORE__DAGS_FOLDER=$(pwd)/dags
-export AIRFLOW__CORE__LOAD_EXAMPLES=False
-
-airflow db init
-
-airflow users create \
-  --username admin --password admin \
-  --firstname Otto --lastname Admin \
-  --role Admin --email admin@test.com
-```
-
-#### Set Environment Variables
-
-The Airflow scheduler must have access to the same environment variables used by the pipeline. Set these **before** starting the scheduler:
-
-```bash
-export GITHUB_TOKEN="YOUR_GITHUB_TOKEN"
-export GCP_PROJECT_ID="otto-pm"
-export GCS_BUCKET_RAW="otto-pm-raw-repos"
-export GCS_BUCKET_PROCESSED="otto-pm-processed-chunks"
-export VERTEX_LOCATION="us-east1"
-export OTTO_REPO="otto-pm/otto"
-export GOOGLE_APPLICATION_CREDENTIALS="sa-key.json"
-```
-
-#### Start Airflow (two terminals)
-
-Both terminals must activate the airflow-venv, set `AIRFLOW_HOME`, and have the pipeline environment variables set.
-
-**Terminal 1 — Webserver:**
-```bash
-cd otto/Data-Pipeline
-source airflow-venv/bin/activate
-export AIRFLOW_HOME=$(pwd)
-airflow webserver --port 8080
-```
-
-**Terminal 2 — Scheduler:**
-```bash
-cd otto/Data-Pipeline
-source airflow-venv/bin/activate
-export AIRFLOW_HOME=$(pwd)
-export AIRFLOW__CORE__DAGS_FOLDER=$(pwd)/dags
-export AIRFLOW__CORE__LOAD_EXAMPLES=False
-# Set all pipeline env vars here (GITHUB_TOKEN, GCP_PROJECT_ID, etc.)
-airflow scheduler
-```
-
-#### Trigger the Pipeline
-
-**Via the UI:**
-1. Open `http://localhost:8080`
-2. Log in with `admin` / `admin`
-3. Toggle `airflow_dag` to unpause (switch on the left)
-4. Click the play button (▶) → **Trigger DAG**
-
-**Via CLI (third terminal):**
-```bash
-source airflow-venv/bin/activate
-export AIRFLOW_HOME=$(pwd)
-airflow dags trigger airflow_dag
-```
-
-#### DAG Structure
-
-The DAG runs 4 tasks in sequence:
-
-```
-ingest → chunk → embed → validate
-```
-
-| Task | What It Does |
-|------|-------------|
-| `ingest` | Downloads repo files from GitHub to GCS |
-| `chunk` | Parses code into chunks via Tree-sitter AST |
-| `embed` | Generates 768-dim embeddings via Vertex AI |
-| `validate` | Runs schema validation, anomaly detection, bias detection |
-
-The Airflow UI provides a Gantt chart, task logs, and DAG visualization for monitoring pipeline execution.
 
 ---
 
@@ -904,7 +619,7 @@ Tests are configured in `tests/conftest.py` with shared pytest fixtures for mock
 
 ## 6. Data Validation & Monitoring
 
-After embedding completes, three validation stages run automatically (both in the deployed pipeline and via DVC/Airflow).
+After embedding completes, three validation stages run automatically (both in the deployed pipeline and via DVC).
 
 ### 6.1 Schema Validation
 
@@ -1002,7 +717,7 @@ otto-pm-processed-chunks/
 | Vector Search | In-memory cosine similarity | Threshold > 0.6 |
 | Object Storage | Google Cloud Storage | Two buckets (raw + processed) |
 | Database | Firestore | User data, webhooks, workspaces |
-| Pipeline Orchestration | Airflow + DVC | Airflow DAG for scheduling, DVC for data versioning |
+| Pipeline Tracking | DVC | 6-stage pipeline, GCS remote |
 | Testing | pytest | 69 tests, mocked fixtures |
 | Python | 3.11 | Required version |
 
@@ -1065,10 +780,6 @@ python -m pytest tests/ -v
 ```
 
 Tests use mocked fixtures — no live API credentials are required.
-
-### Airflow dependency conflicts
-
-Airflow must be installed in a separate virtual environment (`airflow-venv`) from the main pipeline venv. See Section 4.10 for setup instructions.
 
 ---
 
