@@ -9,13 +9,13 @@ stages:
       size: 13381
     - path: scripts/run_pipeline.py
       hash: md5
-      md5: 28d92381db84ec0df1bf8dcce8ed099f
-      size: 5859
+      md5: c205cfb852d0473bfdb47a5fa146bc3b
+      size: 5864
     outs:
     - path: data/raw/metadata.json
       hash: md5
-      md5: c7c6d8c6751f99d6d9ff7a7338a5026f
-      size: 57890
+      md5: b75841a5ae23e29f5fa85a90c17a9330
+      size: 57207
   chunk:
     cmd: python scripts/run_pipeline.py chunk
     deps:
@@ -25,17 +25,17 @@ stages:
       size: 27873
     - path: data/raw/metadata.json
       hash: md5
-      md5: c7c6d8c6751f99d6d9ff7a7338a5026f
-      size: 57890
+      md5: b75841a5ae23e29f5fa85a90c17a9330
+      size: 57207
     - path: scripts/run_pipeline.py
       hash: md5
-      md5: 28d92381db84ec0df1bf8dcce8ed099f
-      size: 5859
+      md5: c205cfb852d0473bfdb47a5fa146bc3b
+      size: 5864
     outs:
     - path: data/processed/chunks.jsonl
       hash: md5
-      md5: 006dd86ee7ac318eda9f844040a65a4a
-      size: 3178344
+      md5: 5db037e258cdca2a507dbeacf2cbeaad
+      size: 3137565
   embed:
     cmd: python scripts/run_pipeline.py embed
     deps:
@@ -45,30 +45,30 @@ stages:
       size: 8076
     - path: data/processed/chunks.jsonl
       hash: md5
-      md5: 006dd86ee7ac318eda9f844040a65a4a
-      size: 3178344
+      md5: 5db037e258cdca2a507dbeacf2cbeaad
+      size: 3137565
     - path: scripts/run_pipeline.py
       hash: md5
-      md5: 28d92381db84ec0df1bf8dcce8ed099f
-      size: 5859
+      md5: c205cfb852d0473bfdb47a5fa146bc3b
+      size: 5864
     outs:
     - path: data/processed/chunks_embedded.jsonl
       hash: md5
-      md5: 1215bf5921fb0ff88faa223531e6161d
-      size: 9895295
+      md5: 9866d7d43734267f531100d05d56230f
+      size: 9735124
   validate:
     cmd: python scripts/run_pipeline.py validate
     deps:
     - path: data/processed/chunks_embedded.jsonl
       hash: md5
-      md5: 1215bf5921fb0ff88faa223531e6161d
-      size: 9895295
+      md5: 9866d7d43734267f531100d05d56230f
+      size: 9735124
     - path: scripts/run_pipeline.py
       hash: md5
-      md5: 28d92381db84ec0df1bf8dcce8ed099f
-      size: 5859
+      md5: c205cfb852d0473bfdb47a5fa146bc3b
+      size: 5864
     outs:
     - path: data/processed/validation_report.json
       hash: md5
-      md5: 7c2ca9767db24d220b5fa1263d319f43
+      md5: 02382ee77ecafc11ce52cceea7a42af2
       size: 209
