@@ -114,9 +114,9 @@ def validate():
             if line.strip():
                 chunks.append(json.loads(line))
 
-    schema_report  = SchemaValidator().validate(chunks)
+    schema_report = SchemaValidator().validate(chunks)
     anomaly_report = AnomalyDetector().detect(chunks, REPO)
-    bias_report    = BiasDetector().detect(chunks, REPO)
+    bias_report = BiasDetector().detect(chunks, REPO)
 
     print(f"   Schema:  {'✅ PASS' if schema_report['overall_pass'] else '⚠️ FAIL'}")
     print(f"   Anomaly: {'✅ PASS' if anomaly_report['passed'] else '⚠️ FAIL'}")
@@ -147,7 +147,7 @@ def validate():
 
     with open("data/processed/anomaly_detection.json", "w") as f:
         json.dump(anomaly_report, f, indent=2)
-    
+
     with open("data/processed/bias_detection.json", "w") as f:
         json.dump(bias_report, f, indent=2)
 
@@ -157,10 +157,11 @@ def validate():
     log.info(f"  Missing content:    {missing_content}")
 
     if not (
-        report["pass"] and 
-        schema_report["overall_pass"] and 
-        not bias_report["bias_detected"] and 
-        anomaly_report["passed"]):
+        report["pass"] and
+        schema_report["overall_pass"] and
+        not bias_report["bias_detected"] and
+        anomaly_report["passed"]
+    ):
         raise ValueError(f"Validation failed see data/processed/*_report.json")
 
 
