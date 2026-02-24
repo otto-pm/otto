@@ -6,9 +6,8 @@ Orchestrates the 4-stage pipeline (ingest → chunk → embed → validate)
 using the same run_pipeline.py script that DVC uses. Airflow handles
 scheduling and orchestration; DVC continues to handle data versioning.
 
-Each task calls `python scripts/run_pipeline.py <stage>` via
-BashOperator, so there is zero code duplication between the
-Airflow and DVC pipelines.
+Each task calls `python scripts/run_pipeline.py <stage>` via BashOperator,
+so there is zero code duplication between the Airflow and DVC pipelines.
 """
 
 from datetime import datetime, timedelta
@@ -48,7 +47,7 @@ default_args = {
 # ---------------------------------------------------------------------------
 
 with DAG(
-    dag_id="airflow_dag",
+    dag_id="otto_data_pipeline",
     default_args=default_args,
     description="Otto: Ingest → Chunk → Embed → Validate",
     # Schedule disabled — triggered manually or via API
