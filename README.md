@@ -90,15 +90,101 @@ User Query → Backend (auth) → Ingest Service → Vector Search → Gemini �
 ## Project Structure
 ```
 otto/
-├── Data-Pipeline                # MLOps pipeline (DVC + Airflow)
-|   ├── dags                     # Airflow DAG definition
+├── Data-Pipeline                # MLOps pipeline (DVC orchestration)
 │   ├── data
 │   │   ├── processed            # Chunks, embeddings, validation reports
 │   │   └── raw                  # Ingested repo metadata
 │   ├── logs                     # Pipeline execution logs
-│   ├── scripts                  # DVC/Airflow stage runner
+│   ├── scripts                  # DVC stage runner + Gantt chart generator
 │   └── tests                    # 69 pytest tests (acquisition, preprocessing, embedding)
 │
+├── backend                      # FastAPI auth + orchestration service
+│   ├── app
+│   │   ├── clients              # HTTP clients (Firebase, GitHub, ingest-service)
+│   │   ├── dependencies         # JWT auth middleware
+│   │   ├── models               # Pydantic models (user, issue, jwt, workspace)
+│   │   ├── routes               # auth, github, rag, user, webhook endpoints
+│   │   ├── services             # Business logic (user, workspace management)
+│   │   └── utils                # Auth helpers
+│   └── docs
+│       └── api                  # Auto-generated API documentation
+│
+├── deliverables
+│   └── scoping                  # Project scoping + user needs documents
+│
+├── frontend                     # Next.js 14 web application
+│   ├── app
+│   │   ├── api
+│   │   │   └── rag              # SSE streaming proxies
+│   │   │       ├── ask
+│   │   │       │   └── stream
+│   │   │       ├── code
+│   │   │       │   └── edit
+│   │   │       │       └── stream
+│   │   │       └── docs
+│   │   │           └── generate
+│   │   │               └── stream
+│   │   ├── auth
+│   │   │   ├── callback         # GitHub OAuth callback
+│   │   │   └── install          # GitHub App installation
+│   │   └── project
+│   │       ├── backlog          # Sprint backlog view
+│   │       ├── board            # Kanban board view
+│   │       └── roadmap          # Roadmap / epics view
+│   ├── assets
+│   │   └── readme               # README screenshots and images
+│   ├── components               # 60+ React components
+│   │   ├── auth                 # Auth token handling
+│   │   ├── backlog              # Backlog list + sprint grouping
+│   │   ├── board                # Kanban board columns + cards
+│   │   ├── form                 # Reusable form fields
+│   │   ├── issue                # Issue CRUD + details
+│   │   │   └── issue-details
+│   │   │       └── issue-details-info
+│   │   ├── modals               # Dialog modals
+│   │   │   ├── alert
+│   │   │   ├── auth
+│   │   │   ├── board-issue-details
+│   │   │   ├── complete-sprint
+│   │   │   │   └── form
+│   │   │   │       └── fields
+│   │   │   ├── start-sprint
+│   │   │   │   └── form
+│   │   │   │       └── fields
+│   │   │   └── update-sprint
+│   │   │       └── form
+│   │   │           └── fields
+│   │   ├── otto-agent           # AI assistant panel
+│   │   ├── roadmap              # Epics table + roadmap header
+│   │   ├── text-editor          # Lexical rich text editor
+│   │   │   ├── context
+│   │   │   ├── plugins
+│   │   │   ├── theme
+│   │   │   └── ui
+│   │   └── ui                   # Shared UI primitives (buttons, modals, tooltips)
+│   ├── config                   # Site configuration
+│   ├── context                  # React context providers (auth, filters, issues)
+│   ├── hooks                    # Custom React hooks
+│   │   └── query-hooks
+│   │       └── use-issues       # Issue CRUD hooks
+│   ├── styles                   # Global CSS + split pane styles
+│   └── utils
+│       └── api                  # API client + endpoint helpers
+│
+├── ingest-service               # Core pipeline + RAG service
+│   ├── app
+│   │   └── routes               # Pipeline + RAG endpoints (pipeline.py)
+│   ├── scripts                  # CLI tools (ingest, embed, RAG CLI)
+│   └── src
+│       ├── chunking             # Tree-sitter parsing + Vertex AI embeddings
+│       ├── github               # GitHub push/PR operations
+│       ├── ingestion            # GitHub repo → GCS ingestion
+│       ├── rag                  # Q&A, docs, completion, editing, vector search
+│       ├── utils                # Storage paths, commit tracking, file management
+│       └── validation           # Schema validation, anomaly + bias detection
+│
+└── style-checker                # PEP8 style checking utilities
+├── Data-Pipeline-Guide.md           # Comprehensive pipeline testing guide
 ├── backend                      # FastAPI auth + orchestration service
 │   ├── app
 │   │   ├── clients              # HTTP clients (Firebase, GitHub, ingest-service)
@@ -189,6 +275,8 @@ otto/
 ├── README.md
 ├── setup-env.sh, setup-env.bat      # Environment setup scripts
 └── requirements.txt
+├── setup-env.sh, setup-env.bat      # Environment setup scripts
+└── requirements.txt
 ```
 
 ---
@@ -265,6 +353,22 @@ gsutil mb -p otto-pm -l us-central1 gs://otto-processed-chunks
 ## Data Version Control (DVC)
 
 We use DVC to track large data files and models. Data is stored in Google Cloud Storage.
+
+## Data Pipeline Guide
+
+For detailed instructions on running and testing the data pipeline (required for the MLOps deliverable), see:
+
+**[Data-Pipeline-Guide.md](./Data-Pipeline-Guide.md)**
+
+This guide covers:
+- **Environment setup** — Python 3.11 venv, GCP authentication, environment variables (cross-platform)
+- **Running the deployed pipeline** — `curl` commands for all endpoints (ingest, chunk, embed, RAG, search, docs, code editing)
+- **Running the DVC pipeline locally** — `dvc dag`, `dvc repro`, stage-by-stage execution
+- **Code structure** — Repository layout, service responsibilities, architecture diagram
+- **Test suite** — 69 pytest tests across 3 modules
+- **Data validation** — Schema validation, anomaly detection, bias detection
+- **Reproducibility & data versioning** — `dvc.lock` hashing, `dvc push/pull`, reproducing previous runs
+
 
 ## Data Pipeline Guide
 
