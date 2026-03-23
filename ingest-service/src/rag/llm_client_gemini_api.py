@@ -1,97 +1,66 @@
 """
-LLM Client using Gemini API directly (not Vertex AI)
-Free tier: 15 requests/min, 1M tokens/day
+LLM Client using Vertex AI (Gemini 1.5 Pro)
 WITH STREAMING SUPPORT
 """
 import os
 from typing import List, Dict, Iterator
-import google.generativeai as genai
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
 class GeminiClient:
-    """Direct Gemini API client with streaming support"""
-    
+    """Vertex AI Gemini client with streaming support"""
+
     def __init__(self, project_id: str = None, location: str = None):
-        """
-        Initialize Gemini API client
-        
-        Note: Ignores project_id/location, uses API key instead
-        Get your key from: https://aistudio.google.com/app/apikey
-        """
-        api_key = os.getenv('GEMINI_API_KEY')
-        
-        if not api_key:
-            raise ValueError(
-                "GEMINI_API_KEY not found in environment.\n"
-                "Get your free API key from: https://aistudio.google.com/app/apikey\n"
-                "Then add to .env file: GEMINI_API_KEY=your_key_here"
-            )
-        
-        genai.configure(api_key=api_key)
-        
-        # Use Gemini 2.5 Flash (free tier)
-        self.model = genai.GenerativeModel('gemini-2.5-flash')
-        
-        print("✓ Gemini API initialized (free tier)")
-        print("  Limits: 15 requests/min, 1M tokens/day")
-    
-    def generate(self, prompt: str, temperature: float = 0.2, 
-                max_tokens: int = 8192) -> str:
-        """Generate text using Gemini API (non-streaming)"""
+        import vertexai
+        from vertexai.generative_models import GenerativeModel
+
+        self.project_id = project_id or os.getenv("GCP_PROJECT_ID", "otto-pm")
+        self.location = location or os.getenv("GCP_REGION", "us-east1")
+
+        vertexai.init(project=self.project_id, location=self.location)
+        self.model = GenerativeModel("gemini-2.5-flash")
+
+        print(f"✓ Vertex AI Gemini initialized")
+        print(f"  Project: {self.project_id}, Location: {self.location}")
+
+    def generate(self, prompt: str, temperature: float = 0.2,
+                 max_tokens: int = 8192) -> str:
+        """Generate text using Vertex AI (non-streaming)"""
+        from vertexai.generative_models import GenerationConfig
         try:
             response = self.model.generate_content(
                 prompt,
-                generation_config=genai.types.GenerationConfig(
+                generation_config=GenerationConfig(
                     temperature=temperature,
                     max_output_tokens=max_tokens,
                     top_p=0.95,
                     top_k=40,
                 )
             )
-            
             return response.text
             
         except Exception as e:
             error_msg = str(e)
             print(f"⚠️  Generation error: {error_msg}")
-            
-            if "API_KEY" in error_msg.upper():
-                return "Error: Invalid API key. Get one from https://aistudio.google.com/app/apikey"
-            elif "RATE_LIMIT" in error_msg.upper():
-                return "Error: Rate limit exceeded (15 req/min on free tier)"
-            elif "QUOTA" in error_msg.upper():
-                return "Error: Daily quota exceeded (1M tokens/day on free tier)"
-            else:
-                return f"Error: {error_msg[:200]}"
-    
+            return f"Error: {error_msg[:200]}"
+
     def generate_stream(self, prompt: str, temperature: float = 0.2,
-                       max_tokens: int = 8192) -> Iterator[str]:
-        """
-        Generate text with streaming (yields chunks as they arrive)
-        
-        Args:
-            prompt: Input prompt
-            temperature: Creativity level
-            max_tokens: Maximum output length
-            
-        Yields:
-            Text chunks as they are generated
-        """
+                        max_tokens: int = 8192) -> Iterator[str]:
+        """Generate text with streaming"""
+        from vertexai.generative_models import GenerationConfig
         try:
             response = self.model.generate_content(
                 prompt,
-                generation_config=genai.types.GenerationConfig(
+                generation_config=GenerationConfig(
                     temperature=temperature,
                     max_output_tokens=max_tokens,
                     top_p=0.95,
                     top_k=40,
                 ),
-                stream=True  # Enable streaming
+                stream=True
             )
-            
             for chunk in response:
                 if chunk.text:
                     yield chunk.text
@@ -121,11 +90,7 @@ RESPONSE:"""
     def generate_with_context_stream(self, query: str, context_chunks: List[Dict],
                                      system_prompt: str, temperature: float = 0.2,
                                      max_tokens: int = 8192) -> Iterator[str]:
-        """
-        Generate response with RAG context (streaming)
-        
-        Yields text chunks as they are generated
-        """
+        """Generate response with RAG context (streaming)"""
         context_text = self._build_context(context_chunks)
         
         full_prompt = f"""{system_prompt}
@@ -146,8 +111,6 @@ RESPONSE:"""
         
         for i, chunk in enumerate(chunks[:max_chunks], 1):
             content = chunk.get('enriched_content', chunk.get('content', ''))
-            
-            # Truncate to save tokens
             if len(content) > 1500:
                 content = content[:1500] + "\n... (truncated)"
             
@@ -158,5 +121,4 @@ Type: {chunk.get('chunk_type', 'unknown')}
 
 {content}
 """)
-        
         return '\n'.join(context_parts)
