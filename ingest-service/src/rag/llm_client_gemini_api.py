@@ -1,5 +1,6 @@
 """
 LLM Client using Vertex AI (Gemini 1.5 Pro)
+LLM Client using Vertex AI (Gemini 1.5 Pro)
 WITH STREAMING SUPPORT
 """
 import os
@@ -12,7 +13,25 @@ load_dotenv()
 class GeminiClient:
     """Vertex AI Gemini client with streaming support"""
 
+    """Vertex AI Gemini client with streaming support"""
+
     def __init__(self, project_id: str = None, location: str = None):
+        import vertexai
+        from vertexai.generative_models import GenerativeModel
+
+        self.project_id = project_id or os.getenv("GCP_PROJECT_ID", "otto-pm")
+        self.location = location or os.getenv("GCP_REGION", "us-east1")
+
+        vertexai.init(project=self.project_id, location=self.location)
+        self.model = GenerativeModel("gemini-2.5-flash")
+
+        print(f"✓ Vertex AI Gemini initialized")
+        print(f"  Project: {self.project_id}, Location: {self.location}")
+
+    def generate(self, prompt: str, temperature: float = 0.2,
+                 max_tokens: int = 8192) -> str:
+        """Generate text using Vertex AI (non-streaming)"""
+        from vertexai.generative_models import GenerationConfig
         import vertexai
         from vertexai.generative_models import GenerativeModel
 
@@ -33,6 +52,7 @@ class GeminiClient:
             response = self.model.generate_content(
                 prompt,
                 generation_config=GenerationConfig(
+                generation_config=GenerationConfig(
                     temperature=temperature,
                     max_output_tokens=max_tokens,
                     top_p=0.95,
@@ -46,7 +66,12 @@ class GeminiClient:
             print(f"⚠️  Generation error: {error_msg}")
             return f"Error: {error_msg[:200]}"
 
+            return f"Error: {error_msg[:200]}"
+
     def generate_stream(self, prompt: str, temperature: float = 0.2,
+                        max_tokens: int = 8192) -> Iterator[str]:
+        """Generate text with streaming"""
+        from vertexai.generative_models import GenerationConfig
                         max_tokens: int = 8192) -> Iterator[str]:
         """Generate text with streaming"""
         from vertexai.generative_models import GenerationConfig
@@ -54,11 +79,13 @@ class GeminiClient:
             response = self.model.generate_content(
                 prompt,
                 generation_config=GenerationConfig(
+                generation_config=GenerationConfig(
                     temperature=temperature,
                     max_output_tokens=max_tokens,
                     top_p=0.95,
                     top_k=40,
                 ),
+                stream=True
                 stream=True
             )
             for chunk in response:
@@ -91,6 +118,7 @@ RESPONSE:"""
     def generate_with_context_stream(self, query: str, context_chunks: List[Dict],
                                      system_prompt: str, temperature: float = 0.2,
                                      max_tokens: int = 8192) -> Iterator[str]:
+        """Generate response with RAG context (streaming)"""
         """Generate response with RAG context (streaming)"""
         context_text = self._build_context(context_chunks)
 
