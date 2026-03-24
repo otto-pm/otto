@@ -33,8 +33,7 @@
    - 4.6 Run Individual DVC Stages
    - 4.7 Inspect Stage Outputs
    - 4.8 Verify DVC Tracking
-   - 4.9 [Data Versioning with DVC](#49-data-versioning-with-dvc)
-   - 4.10 [Running the Airflow DAG](#410-running-the-airflow-dag)
+   - 4.9 [Reproducibility & Data Versioning](#49-reproducibility--data-versioning)
 5. [Running the Test Suite (69 Tests)](#5-running-the-test-suite-69-tests)
 6. [Data Validation & Monitoring](#6-data-validation--monitoring)
 7. [Pipeline Architecture Reference](#7-pipeline-architecture-reference)
@@ -55,7 +54,7 @@ Ingest → Chunk → Embed → Schema Validation → Anomaly Detection → Bias 
 
 The pipeline is **fully deployed on Google Cloud Run** — no local environment setup is required to test the core pipeline. You can test every endpoint using `curl` from your terminal with **any GitHub repository you have access to** (public or private).
 
-A separate section (Section 4) covers running the DVC pipeline and Airflow DAG locally if you'd like to verify the pipeline configuration and reproducibility.
+A separate section (Section 4) covers running the DVC pipeline locally if you'd like to verify the DVC configuration and reproducibility.
 
 ---
 
@@ -118,11 +117,10 @@ otto/
 |   |-- context/
 |   +-- utils/
 |
-|-- Data-Pipeline/                       # MLOps pipeline (DVC + Airflow)
-|   |-- dags/
-|   |   +-- airflow_dag.py         # Airflow DAG definition
+|-- Data-Pipeline/                       # MLOps pipeline (DVC)
 |   |-- scripts/
-|   |   +-- run_pipeline.py              # DVC/Airflow stage runner
+|   |   |-- run_pipeline.py              # DVC stage runner
+|   |   +-- gantt.py                     # Bottleneck visualization
 |   |-- tests/
 |   |   |-- conftest.py
 |   |   |-- test_acquisition.py
@@ -155,8 +153,8 @@ otto/
 |---------|---------|------------|
 | **backend** | Handles authentication (GitHub OAuth), user/workspace management via Firestore, and proxies RAG requests to the ingest-service. Receives GitHub webhooks to trigger pipeline runs on push events. | Cloud Run (`us-east1`) |
 | **ingest-service** | Core pipeline engine. Ingests repos from GitHub, chunks code via Tree-sitter AST, generates embeddings via Vertex AI, runs validation, and serves all RAG endpoints (Q&A, docs generation, code completion, code editing, semantic search). | Cloud Run (`us-east1`) |
-| **frontend** | Next.js UI providing project management (board, backlog, roadmap) and an AI assistant panel that streams RAG responses via SSE proxies. | Vercel |
-| **Data-Pipeline** | MLOps layer with dual orchestration: Airflow DAG for scheduling and visualization, DVC for data versioning. Wraps the same production classes from `ingest-service` with no code duplication. | Local (Airflow + DVC) |
+| **frontend** | Next.js UI providing project management (board, backlog, roadmap) and an AI assistant panel that streams RAG responses
+| **Data-Pipeline** | DVC-orchestrated MLOps layer. Wraps the same production classes from `ingest-service` into a reproducible, versioned DAG for local execution, testing, and auditing. | Local (DVC) |
 
 #### How the Services Connect
 
@@ -176,7 +174,7 @@ User / GitHub Webhook
     Vertex AI (embeddings) + Gemini (LLM)
 ```
 
-The **backend** authenticates users and forwards requests to **ingest-service**, which runs the pipeline and serves RAG features. Both services read/write to the same GCS buckets. The **Data-Pipeline** layer imports the same source classes from `ingest-service` and targets the same GCS infrastructure, providing local reproducibility, data versioning, and pipeline visualization without duplicating code.
+The **backend** authenticates users and forwards requests to **ingest-service**, which runs the pipeline and serves RAG features. Both services read/write to the same GCS buckets. The **Data-Pipeline** DVC layer imports the same source classes from `ingest-service` and targets the same GCS infrastructure, providing a local reproducibility and versioning layer without duplicating code.
 
 ---
 
@@ -593,7 +591,7 @@ The 4 stages and their dependencies are defined in `dvc.yaml`:
 | **ingest** | `scripts/run_pipeline.py ingest` | Downloads repo files from GitHub to GCS |
 | **chunk** | `scripts/run_pipeline.py chunk` | Parses code into chunks via Tree-sitter AST |
 | **embed** | `scripts/run_pipeline.py embed` | Generates 768-dim embeddings via Vertex AI |
-| **validate** | `scripts/run_pipeline.py validate` | Validates chunk schema, performs anomaly and bias detection |
+| **validate** | `scripts/schema_validation.py validate` | Validates chunk schema, performs anomaly and bias detection |
 
 ### 4.5 Run the Full DVC Pipeline
 
@@ -654,7 +652,11 @@ cat dvc.yaml
 
 ### 4.9 Data Versioning with DVC
 
-DVC tracks all pipeline inputs and outputs with content-addressable hashing. After each `dvc repro`, the `dvc.lock` file records the MD5 hash of every stage's dependencies and outputs. This file is committed to Git, ensuring a record of exactly what data was produced by each pipeline run.
+DVC tracks all pipeline inputs and outputs with content-addressable 
+hashing. After each `dvc repro`, the `dvc.lock` file records the 
+MD5 hash of every stage's dependencies and outputs. This file is 
+committed to Git, ensuring a record of exactly what data was 
+produced by each pipeline run.
 
 **DVC Remote:**
 ```
@@ -967,7 +969,7 @@ Tests are configured in `tests/conftest.py` with shared pytest fixtures for mock
 
 ## 6. Data Validation & Monitoring
 
-After embedding completes, three validation stages run automatically (both in the deployed pipeline and via DVC/Airflow).
+After embedding completes, three validation stages run automatically (both in the deployed pipeline and via DVC).
 
 ### 6.1 Schema Validation
 
@@ -1065,7 +1067,7 @@ otto-pm-processed-chunks/
 | Vector Search | In-memory cosine similarity | Threshold > 0.6 |
 | Object Storage | Google Cloud Storage | Two buckets (raw + processed) |
 | Database | Firestore | User data, webhooks, workspaces |
-| Pipeline Orchestration | Airflow + DVC | Airflow DAG for scheduling, DVC for data versioning |
+| Pipeline Tracking | DVC | 4-stage pipeline, GCS remote |
 | Testing | pytest | 69 tests, mocked fixtures |
 | Python | 3.11 | Required version |
 
@@ -1128,10 +1130,6 @@ python -m pytest tests/ -v
 ```
 
 Tests use mocked fixtures — no live API credentials are required.
-
-### Airflow dependency conflicts
-
-Airflow must be installed in a separate virtual environment (`airflow-venv`) from the main pipeline venv. See Section 4.10 for setup instructions.
 
 ---
 

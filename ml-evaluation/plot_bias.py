@@ -76,12 +76,20 @@ def plot_slice_chart(dimension: str, slice_names: list, faith_scores: list,
     path = os.path.join(CHARTS_DIR, filename)
     plt.savefig(path, dpi=150, bbox_inches="tight")
     plt.close()
+<<<<<<< HEAD
     print(f"Saved: {path}")
+=======
+    print(f"✓ Saved: {path}")
+>>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
 
 
 def main():
     print(f"\n{'='*50}")
+<<<<<<< HEAD
     print("OTTO — PLOT BIAS RESULTS")
+=======
+    print("📊 OTTO — PLOT BIAS RESULTS")
+>>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
     print(f"{'='*50}")
 
     with open(REPORT_PATH, "r") as f:
@@ -101,7 +109,11 @@ def main():
             filename=f"bias_{dimension.replace('-', '_').lower()}.png",
         )
 
+<<<<<<< HEAD
     print(f"\nAll bias charts saved to {CHARTS_DIR}")
+=======
+    print(f"\n✅ All bias charts saved to {CHARTS_DIR}")
+>>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 {
+<<<<<<< HEAD
   "timestamp": "2026-03-23T20:34:28.754643",
   "prompt_version": "V4",
   "dimensions": {
@@ -60,6 +61,11 @@
       },
       "flagged_slices": []
     },
+=======
+  "timestamp": "2026-03-23T20:33:22.194536",
+  "prompt_version": "V4",
+  "dimensions": {
+>>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
     "chunk_size": {
       "slices": {
         "small": {
@@ -67,6 +73,7 @@
           "answer_relevancy": 0.922,
           "flagged": false,
           "flag_reasons": []
+<<<<<<< HEAD
         },
         "medium": {
           "faithfulness": 0.846,
@@ -86,6 +93,15 @@
         "faithfulness_stdev": 0.034,
         "relevancy_mean": 0.911,
         "relevancy_stdev": 0.085
+=======
+        }
+      },
+      "stats": {
+        "faithfulness_mean": null,
+        "relevancy_mean": null,
+        "faithfulness_stdev": null,
+        "relevancy_stdev": null
+>>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
       },
       "flagged_slices": []
     }

@@ -1,14 +1,27 @@
 """
+<<<<<<< HEAD
 Plot Validation Results
+=======
+Plot Results
+>>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
 Reads experiments/experiments.jsonl and generates bar charts.
 
 Usage:
     cd ml-evaluation
+<<<<<<< HEAD
     python plot_val.py
 
 Output:
     charts/validation/scores_by_run.png
     charts/validation/latest_run_summary.png
+=======
+    python plot_results.py
+
+Output:
+    charts/scores_by_run.png
+    charts/scores_by_prompt_version.png
+    charts/latest_run_summary.png
+>>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
 """
 import os
 import json
@@ -16,7 +29,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 EXPERIMENTS_LOG = os.path.join(os.path.dirname(__file__), "experiments", "experiments.jsonl")
+<<<<<<< HEAD
 CHARTS_DIR = os.path.join(os.path.dirname(__file__), "charts", "validation")
+=======
+CHARTS_DIR = os.path.join(os.path.dirname(__file__), "charts")
+>>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
 
 FAITHFULNESS_THRESHOLD = 0.5
 RELEVANCY_THRESHOLD = 0.7
@@ -37,7 +54,11 @@ def load_runs() -> list:
             run = json.loads(line)
             if run.get("scores", {}).get("faithfulness") is not None:
                 runs.append(run)
+<<<<<<< HEAD
     print(f"Loaded {len(runs)} runs")
+=======
+    print(f"✓ Loaded {len(runs)} runs")
+>>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
     return runs
 
 
@@ -91,6 +112,7 @@ def plot_scores_by_run(runs: list):
     path = os.path.join(CHARTS_DIR, "scores_by_run.png")
     plt.savefig(path, dpi=150, bbox_inches="tight")
     plt.close()
+<<<<<<< HEAD
     print(f"Saved: {path}")
 
 
@@ -100,6 +122,17 @@ def plot_latest_run_summary(runs: list):
     if not val_runs:
         val_runs = runs
     latest = val_runs[-1]
+=======
+    print(f"✓ Saved: {path}")
+
+
+
+
+
+def plot_latest_run_summary(runs: list):
+    """Bar chart of the most recent run's scores vs thresholds."""
+    latest = runs[-1]
+>>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
     scores = latest["scores"]
 
     metrics = ["Faithfulness", "Answer Relevancy"]
@@ -121,11 +154,18 @@ def plot_latest_run_summary(runs: list):
     ax.set_ylabel("Score (0-1)")
     ax.set_title(f"Latest Validation Run — {latest['timestamp'][:10]}")
     ax.set_ylim(0, 1.15)
+<<<<<<< HEAD
     ax.bar_label(bars, labels=[f"{v:.3f}" for v in values],
                  padding=3, fontsize=11, fontweight="bold")
 
     passed = latest.get("passed", False)
     status = "PASSED" if passed else "FAILED"
+=======
+    ax.bar_label(bars, fmt="%.3f", padding=3, fontsize=11, fontweight="bold")
+
+    passed = latest.get("passed", False)
+    status = "✅ PASSED" if passed else "❌ FAILED"
+>>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
     ax.text(0.5, 1.08, status, transform=ax.transAxes,
             ha="center", fontsize=12, fontweight="bold",
             color="green" if passed else "red")
@@ -134,25 +174,42 @@ def plot_latest_run_summary(runs: list):
     path = os.path.join(CHARTS_DIR, "latest_run_summary.png")
     plt.savefig(path, dpi=150, bbox_inches="tight")
     plt.close()
+<<<<<<< HEAD
     print(f"Saved: {path}")
+=======
+    print(f"✓ Saved: {path}")
+>>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
 
 
 def main():
     print(f"\n{'='*50}")
+<<<<<<< HEAD
     print("OTTO — PLOT VALIDATION RESULTS")
+=======
+    print("📊 OTTO — PLOT RESULTS")
+>>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
     print(f"{'='*50}")
 
     runs = load_runs()
 
     if not runs:
+<<<<<<< HEAD
         print("No runs found in experiments.jsonl")
+=======
+        print("❌ No runs found in experiments.jsonl")
+>>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
         return
 
     plot_scores_by_run(runs)
     plot_latest_run_summary(runs)
 
+<<<<<<< HEAD
     print(f"\nAll charts saved to {CHARTS_DIR}")
     print("Include these in your ML development document.")
+=======
+    print(f"\n✅ All charts saved to {CHARTS_DIR}")
+    print("   Include these in your ML development document.")
+>>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
 
 
 if __name__ == "__main__":
