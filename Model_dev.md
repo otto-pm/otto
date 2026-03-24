@@ -278,27 +278,38 @@ Otto uses **GitHub Actions** to automate validation, bias detection, and redeplo
 
 ### Stage 1 — CI/CD Setup
 
-Added a GitHub Actions workflow (`.github/workflows/deploy.yml`) that triggers on push to `main`. The workflow runs lint, data pipeline, tests, and service deployments in sequence, with environment variables `GEMINI_API_KEY`, `GCP_PROJECT_ID`, and `GCP_REGION` configured as GitHub secrets.
+- Added a GitHub Actions workflow (`.github/workflows/deploy.yml`) that triggers on push to `main`.
+- Workflow runs lint, data pipeline, tests, and service deployments in sequence.
+- Environment variables configured: GEMINI_API_KEY, GCP_PROJECT_ID, GCP_REGION.
 
 ### Stage 2 — Automated Model Validation
 
-Implemented in `ml-evaluation/run_validation.py`. Runs 5 held-out queries against the live RAG endpoint and computes RAGAS faithfulness and answer relevancy scores using `gemini-2.5-flash-lite` via Vertex AI as the judge LLM. Fails the build (exits with code 1) if faithfulness < 0.5 or answer relevancy < 0.7, enabling use as a CI/CD gate.
+- Implemented in `ml-evaluation/run_validation.py`. Runs 5 held-out queries against the live RAG endpoint.
+- Computes RAGAS faithfulness and answer_relevancy scores using `gemini-2.5-flash-lite` via Vertex AI as the judge LLM.
+- Fails the build (exits with code 1) if faithfulness < 0.5 or answer_relevancy < 0.7, enabling use as a CI/CD gate.
 
 ### Stage 3 — Automated Model Bias Detection
 
-Implemented in `ml-evaluation/run_bias_eval.py`. Slices the dataset by programming language, repo section, and chunk size, computes RAGAS scores per slice, and flags slices more than 1.5 standard deviations below average. Outputs a structured JSON bias report to `reports/bias_report.json` and fails the build if bias is detected across any slice.
+- Implemented in `ml-evaluation/run_bias_eval.py`. Slices dataset by programming language, repo section, and chunk size.
+- Computes RAGAS scores per slice and flags slices more than 1.5 standard deviations below average.
+- Outputs structured JSON bias report to `reports/bias_report.json`. Fails the build if bias is detected across any slice.
 
 ### Stage 4 — Model Deployment
 
-Once validation and bias checks pass, the backend and ingest services are automatically redeployed to Cloud Run. The ingest service is deployed via `deploy-ingest.sh` using `gcloud run deploy --source=.` to build and deploy to `us-east1` with 2Gi memory and a 300s timeout. The backend service is deployed automatically via GitHub Actions using a dedicated GCP service account. Both services are tagged with semantic version numbers and stored in GCP Artifact Registry.
+Once validation and bias checks pass, the backend and ingest services are automatically redeployed to Cloud Run.
+
+- **Ingest Service:** Deployed via `deploy-ingest.sh`; uses `gcloud run deploy --source=.` to build and deploy to `us-east1` with 2Gi memory and 300s timeout.
+- **Backend Service:** Deployed automatically via GitHub Actions using GCP service account. Both services are tagged with semantic version numbers and stored in GCP Artifact Registry.
 
 ### Stage 5 — Notifications and Alerts
 
-Implemented in `.github/workflows/deploy.yml` as the `notify` job. Sends a summary email of pipeline status (success or failure) using the GitHub Actions email action. The job runs regardless of outcome to ensure stakeholders are always informed of pipeline results.
+- Implemented in `.github/workflows/deploy.yml` as the `notify` job.
+- Sends summary email of pipeline status (success/failure) using GitHub Actions email action.
+- Runs regardless of job outcome, to ensure stakeholders are informed of pipeline results.
 
 ### Stage 6 — Rollback Mechanism
 
-A traditional rollback mechanism does not apply to Otto because there is no model artifact being deployed — Gemini is a static external API. Rolling back means reverting to a previous Git commit via standard Git revert. Cloud Run supports revision rollback for the service layer via `gcloud run services update-traffic`, allowing instantaneous traffic shift to a previous healthy revision if a deployment introduces a regression.
+A traditional rollback mechanism does not apply to Otto because there is no model artifact being deployed — Gemini is a static external API. Rolling back means reverting to a previous Git commit via standard Git revert. Cloud Run supports revision rollback for the service layer via `gcloud run services update-traffic` if a deployment introduces a regression, allowing instantaneous traffic shift to a previous healthy revision.
 
 ---
 
