@@ -1,6 +1,7 @@
 # Otto — ML Model Development Document
 
 > **Note:** Otto uses a pre-trained large language model (Gemini via Vertex AI) rather than a custom trained model. As noted in the guidelines, some steps such as model training and hyperparameter tuning are therefore not applicable. However, validation, bias detection, tracking, and CI/CD are all implemented as described below.
+> **Note:** Otto uses a pre-trained large language model (Gemini via Vertex AI) rather than a custom trained model. As noted in the guidelines, some steps such as model training and hyperparameter tuning are therefore not applicable. However, validation, bias detection, tracking, and CI/CD are all implemented as described below.
 
 ---
 
@@ -21,9 +22,32 @@ Otto's data pipeline processes the connected GitHub repository through four sequ
 At query time, the user's question is embedded using the same model and a nearest-neighbour search (ScaNN via `VectorSearch`) retrieves the top 8 most relevant chunks from the vector store. These chunks are injected into the Gemini prompt as context, grounding the model's response in the actual codebase.
 
 <div align="center"><img src="ml-evaluation/charts/otto_rag_data_flow.jpg" width="460"/></div>
+<div align="center"><img src="ml-evaluation/charts/otto_rag_data_flow.jpg" width="460"/></div>
 
 ### 2.2 Training and Selecting the Best Model
 
+*Otto uses Gemini 1.5 Pro via Vertex AI as a pre-trained black-box API. No training is performed. Model selection was performed by evaluating candidate LLMs against the criteria below.*
+
+**Selection criteria considered:**
+
+| Criterion | Rationale |
+|---|---|
+| Context window size | Q&A requires injecting large code chunks as context |
+| Code understanding | Q&A requires reasoning over multi-language codebases |
+| GCP-native availability | Minimises infrastructure complexity given existing GCP stack |
+| Cost per token | Practical constraint for a project-scale deployment |
+
+**Model comparison at time of release:**
+
+| Criterion | Gemini 1.5 Pro ✅ | GPT-4o | Claude 3.5 Sonnet |
+|---|---|---|---|
+| Context window | 1M tokens | 128K tokens | 200K tokens |
+| Code understanding (HumanEval) | ~71% | ~90% | ~94% |
+| Input cost (per 1M tokens) | $1.25 | $2.50 | $3.00 |
+| Output cost (per 1M tokens) | $5.00 | $10.00 | $15.00 |
+| GCP-native | ✅ Yes | ❌ No | ❌ No |
+
+The primary driver in selecting Gemini 1.5 Pro via Vertex AI was its native availability on Google Cloud Platform. As Otto's infrastructure is built entirely on GCP — using Cloud Run, Cloud Storage, and Vertex AI for embeddings — using Gemini avoided the need to introduce external API dependencies, kept latency low, and simplified authentication and billing under a single GCP project. Its 1M token context window was also a significant advantage for injecting large code chunks into the prompt, outperforming both GPT-4o (128K) and Claude 3.5 Sonnet (200K) on this dimension. While Claude 3.5 Sonnet leads on code understanding benchmarks, Gemini's GCP-native availability and lower cost made it the most practical choice for a project-scale deployment.
 *Otto uses Gemini 1.5 Pro via Vertex AI as a pre-trained black-box API. No training is performed. Model selection was performed by evaluating candidate LLMs against the criteria below.*
 
 **Selection criteria considered:**
@@ -72,9 +96,12 @@ Note: faithfulness scores are inherently lower for code Q&A than factual Q&A, as
 
 <div align="center"><img src="ml-evaluation/charts/validation/scores_by_run.png" width="460"/></div>
 <div align="center"><img src="ml-evaluation/charts/validation/latest_run_summary.png" width="460"/></div>
+<div align="center"><img src="ml-evaluation/charts/validation/scores_by_run.png" width="460"/></div>
+<div align="center"><img src="ml-evaluation/charts/validation/latest_run_summary.png" width="460"/></div>
 
 ### 2.4 Model Bias Detection
 
+Bias is evaluated by slicing the dataset by programming language, repo section, and chunk size, and computing RAGAS scores per slice. Any slice scoring more than 1.5 standard deviations below the group average is flagged. No bias was detected across any dimension. Full results are in Section 6.
 Bias is evaluated by slicing the dataset by programming language, repo section, and chunk size, and computing RAGAS scores per slice. Any slice scoring more than 1.5 standard deviations below the group average is flagged. No bias was detected across any dimension. Full results are in Section 6.
 
 | Dimension | All slices passed? |
@@ -83,6 +110,9 @@ Bias is evaluated by slicing the dataset by programming language, repo section, 
 | Repo section | ✅ Yes |
 | Chunk size | ✅ Yes |
 
+<div align="center"><img src="ml-evaluation/charts/bias/bias_language.png" width="460"/></div>
+<div align="center"><img src="ml-evaluation/charts/bias/bias_repo_section.png" width="460"/></div>
+<div align="center"><img src="ml-evaluation/charts/bias/bias_chunk_size.png" width="460"/></div>
 <div align="center"><img src="ml-evaluation/charts/bias/bias_language.png" width="460"/></div>
 <div align="center"><img src="ml-evaluation/charts/bias/bias_repo_section.png" width="460"/></div>
 <div align="center"><img src="ml-evaluation/charts/bias/bias_chunk_size.png" width="460"/></div>
@@ -96,9 +126,11 @@ Bias checks are implemented in `ml-evaluation/run_bias_eval.py`. The script slic
 *Not applicable — Gemini is accessed via the Vertex AI API. No model artifact exists to push.*
 
 As noted in the guidelines, this step is not necessary for pre-trained large models. In place of pushing a model artifact, Otto versions its services via Docker images tagged with semantic version numbers and pushed to GCP Artifact Registry. Each deployment creates a new Cloud Run revision pointing to the tagged image, providing full version history, rollback capability, and traffic splitting. See Section 8.7 for details.
+As noted in the guidelines, this step is not necessary for pre-trained large models. In place of pushing a model artifact, Otto versions its services via Docker images tagged with semantic version numbers and pushed to GCP Artifact Registry. Each deployment creates a new Cloud Run revision pointing to the tagged image, providing full version history, rollback capability, and traffic splitting. See Section 8.7 for details.
 
 ---
 
+## 3. Hyperparameter Tuning
 ## 3. Hyperparameter Tuning
 
 Otto does not fine-tune the underlying model, however the generation temperature and top-k retrieval count function as hyperparameters that meaningfully affect output quality. These were tuned by systematically testing temperature values (0.0, 0.2, 0.5, 0.8) and top-k values (3, 5, 8, 12) against a fixed query set using RAGAS faithfulness and answer relevancy as the optimisation metric.
@@ -121,22 +153,26 @@ Otto does not fine-tune the underlying model, however the generation temperature
 | 8 ★ | 0.798 | 0.963 |
 | 12 | 0.762 | 0.958 |
 
-Temperature 0.2 and top-k 8 were selected. Although temperature 0.0 produced the highest faithfulness score (0.806), it is overly restrictive for a code Q&A system — deterministic outputs can result in repetitive or inflexible phrasing that fails to explain code naturally. Temperature 0.2 retains near-deterministic grounding while allowing enough variation to produce clear, readable explanations. Temperatures 0.5 and 0.8 both produced marginally higher faithfulness scores (0.811 and 0.789 vs 0.773) but introduce greater randomness — at higher temperatures the model is more likely to stray from retrieved context and produce inconsistent answers across repeated queries. Top-k 8 was selected as it produced the best balance of faithfulness and relevancy — top-k 5 showed a notable faithfulness drop (0.662) and top-k 12 offered no meaningful improvement over 8. Overall, results were broadly comparable across most temperature and top-k combinations, suggesting that Otto's RAG pipeline is not highly sensitive to these parameters within the tested ranges. Full charts are in Section 5a.
+Temperature 0.2 and top-k 8 were selected. Although temperature 0.0 produced the highest faithfulness score (0.806), it is overly restrictive for a code Q&A system — deterministic outputs can result in repetitive or inflexible phrasing that fails to explain code naturally. Temperature 0.2 retains near-deterministic grounding while allowing enough variation to produce clear, readable explanations. Temperature 0.5 produced a marginally higher faithfulness score (0.811 vs 0.773) but introduces greater risk of straying from retrieved context. Top-k 8 was selected as it produced the best balance of faithfulness and relevancy — top-k 5 showed a notable faithfulness drop (0.662) and top-k 12 offered no meaningful improvement over 8. Full charts are in Section 5a.
 
 ---
 
+## 4. Experiment Tracking and Results
 ## 4. Experiment Tracking and Results
 
 *Replaces MLflow / Weights & Biases. Otto tracks prompt experiments and RAGAS validation runs rather than training runs.*
 
 All experiment runs are logged to `ml-evaluation/experiments/experiments.jsonl`. Each entry records: timestamp, prompt version, guardrails present, temperature, top-k, number of queries, RAGAS scores, pass/fail status, and thresholds. This file serves as Otto's equivalent of an experiment tracking log. Experiments were executed using the Python scripts in `ml-evaluation/` — validation via `run_validation.py`, hyperparameter sweeps via `run_sensitivity.py`, feature sensitivity via `run_feature_sensitivity.py`, and bias evaluation via `run_bias_eval.py`. Visualisations were generated by the corresponding plot scripts (`plot_val.py`, `plot_sensitivity.py`, `plot_feature_sensitivity.py`, `plot_bias.py`) and saved to `ml-evaluation/charts/`.
+All experiment runs are logged to `ml-evaluation/experiments/experiments.jsonl`. Each entry records: timestamp, prompt version, guardrails present, temperature, top-k, number of queries, RAGAS scores, pass/fail status, and thresholds. This file serves as Otto's equivalent of an experiment tracking log. Experiments were executed using the Python scripts in `ml-evaluation/` — validation via `run_validation.py`, hyperparameter sweeps via `run_sensitivity.py`, feature sensitivity via `run_feature_sensitivity.py`, and bias evaluation via `run_bias_eval.py`. Visualisations were generated by the corresponding plot scripts (`plot_val.py`, `plot_sensitivity.py`, `plot_feature_sensitivity.py`, `plot_bias.py`) and saved to `ml-evaluation/charts/`.
 
 ---
 
 ## 5. Model Sensitivity Analysis
+## 5. Model Sensitivity Analysis
 
 *SHAP and LIME are not applicable to black-box LLMs as internal model weights are inaccessible. Otto instead performs sensitivity analysis via hyperparameter sweeps to identify which generation parameters most affect output quality, and input ablation to test robustness to query phrasing and reduced retrieval context.*
 
+### 5a. Hyperparameter Sensitivity
 ### 5a. Hyperparameter Sensitivity
 
 Temperature and top-k were swept using `run_sensitivity.py` against a fixed set of 5 queries with prompt version V4. Results are logged to `experiments.jsonl` and charts saved to `charts/sensitivity/`.
@@ -145,17 +181,23 @@ Temperature had a modest effect on faithfulness (range: 0.773–0.811) with scor
 
 <div align="center"><img src="ml-evaluation/charts/sensitivity/sensitivity_temperature.png" width="460"/></div>
 <div align="center"><img src="ml-evaluation/charts/sensitivity/sensitivity_topk.png" width="460"/></div>
+<div align="center"><img src="ml-evaluation/charts/sensitivity/sensitivity_temperature.png" width="460"/></div>
+<div align="center"><img src="ml-evaluation/charts/sensitivity/sensitivity_topk.png" width="460"/></div>
 
 ### 5b. Input / Feature Sensitivity
+### 5b. Input / Feature Sensitivity
 
+**Context degradation** is addressed through the top-k sensitivity results in Section 5a. Reducing top-k directly controls how much retrieved context is injected into the prompt — lower values degrade the breadth of the answer even if RAGAS scores do not always reflect this. Notably, very low top-k values can score deceptively well on faithfulness and answer relevancy because the model is constrained to a small, highly relevant chunk and cannot stray from it. This means the metrics do not fully capture the completeness penalty of reduced context. Top-k 8 was selected as the value that best balances retrieval breadth with answer grounding.
 **Context degradation** is addressed through the top-k sensitivity results in Section 5a. Reducing top-k directly controls how much retrieved context is injected into the prompt — lower values degrade the breadth of the answer even if RAGAS scores do not always reflect this. Notably, very low top-k values can score deceptively well on faithfulness and answer relevancy because the model is constrained to a small, highly relevant chunk and cannot stray from it. This means the metrics do not fully capture the completeness penalty of reduced context. Top-k 8 was selected as the value that best balances retrieval breadth with answer grounding.
 
 **Query rephrasing** was tested by running 3 differently worded versions of the same question — "How does the RAG service retrieve relevant code chunks?" — through the live endpoint and computing aggregate RAGAS scores across all phrasings. The model achieved faithfulness of 0.963 and answer relevancy of 0.971, both well above threshold. This demonstrates that Otto's RAG pipeline is robust to natural variation in how users phrase their questions.
 
 <div align="center"><img src="ml-evaluation/charts/sensitivity/feature_query_rephrasing.png" width="460"/></div>
+<div align="center"><img src="ml-evaluation/charts/sensitivity/feature_query_rephrasing.png" width="460"/></div>
 
 ---
 
+## 6. Model Bias Detection (Using Slicing Techniques)
 ## 6. Model Bias Detection (Using Slicing Techniques)
 
 In place of demographic group slicing, Otto slices by programming language, repo section, and chunk size — the meaningful subgroups for a code Q&A system. Bias detection is implemented in `ml-evaluation/run_bias_eval.py`.
@@ -169,6 +211,8 @@ The dataset is broken down by the following slices:
 | Programming language | Python, TypeScript |
 | Repo section | frontend, backend, Data-Pipeline, infrastructure |
 | Chunk size | small (<200 chars), medium (200–1000 chars), large (>1000 chars) |
+
+Python and TypeScript are the only two languages present in the Otto codebase. Otto's chunker supports six languages via tree-sitter parsers — Python, JavaScript, TypeScript, Java, Go, and Rust — all of which are among the most widely used and extensively documented programming languages. As a result, all supported languages are well-represented in Gemini's training data, making cross-language bias unlikely both in the current codebase and for any future repos connected to Otto.
 
 Python and TypeScript are the only two languages present in the Otto codebase. Otto's chunker supports six languages via tree-sitter parsers — Python, JavaScript, TypeScript, Java, Go, and Rust — all of which are among the most widely used and extensively documented programming languages. As a result, all supported languages are well-represented in Gemini's training data, making cross-language bias unlikely both in the current codebase and for any future repos connected to Otto.
 
@@ -206,6 +250,9 @@ For each slice, RAGAS faithfulness and answer relevancy are computed and logged 
 <div align="center"><img src="ml-evaluation/charts/bias/bias_language.png" width="460"/></div>
 <div align="center"><img src="ml-evaluation/charts/bias/bias_repo_section.png" width="460"/></div>
 <div align="center"><img src="ml-evaluation/charts/bias/bias_chunk_size.png" width="460"/></div>
+<div align="center"><img src="ml-evaluation/charts/bias/bias_language.png" width="460"/></div>
+<div align="center"><img src="ml-evaluation/charts/bias/bias_repo_section.png" width="460"/></div>
+<div align="center"><img src="ml-evaluation/charts/bias/bias_chunk_size.png" width="460"/></div>
 
 ### Step 3 — Bias Mitigation
 
@@ -222,8 +269,6 @@ No bias was detected and no mitigation was applied. If bias had been detected, t
 ---
 
 ## 7. CI/CD Pipeline Automation (GitHub Actions)
-
-<div align="center"><img src="CICD-snip.png" width="460"/></div>
 
 Otto uses **GitHub Actions** to automate validation, bias detection, and redeployment whenever new code or data changes are pushed to the repository.
 
@@ -258,13 +303,17 @@ A traditional rollback mechanism does not apply to Otto because there is no mode
 ---
 
 ## 8. Code Implementation
+## 8. Code Implementation
 
+### 8.1 Docker / RAG Format
 ### 8.1 Docker / RAG Format
 
 Otto satisfies this requirement in two ways: the ingest service and backend are each containerised with Docker for deployment to Cloud Run, and the entire model development process is implemented as a RAG system — retrieval via ScaNN and generation via Gemini on Vertex AI.
 
 Both services use a `python:3.11-slim` base image. The **backend** Dockerfile installs Python dependencies, copies the application code alongside Firebase credentials and GitHub private key, and serves the FastAPI app via Uvicorn on port 8080. The **ingest service** Dockerfile additionally installs `g++` to support native compilation dependencies required by the RAG and chunking libraries, copies both `src/` and `app/` directories, and sets `GOOGLE_CLOUD_PROJECT` to configure Vertex AI authentication at runtime. Both images are built and pushed to GCP Artifact Registry on each deployment, with Cloud Run creating a new revision per release.
+Both services use a `python:3.11-slim` base image. The **backend** Dockerfile installs Python dependencies, copies the application code alongside Firebase credentials and GitHub private key, and serves the FastAPI app via Uvicorn on port 8080. The **ingest service** Dockerfile additionally installs `g++` to support native compilation dependencies required by the RAG and chunking libraries, copies both `src/` and `app/` directories, and sets `GOOGLE_CLOUD_PROJECT` to configure Vertex AI authentication at runtime. Both images are built and pushed to GCP Artifact Registry on each deployment, with Cloud Run creating a new revision per release.
 
+### 8.2 Code for Loading Data from the Data Pipeline
 ### 8.2 Code for Loading Data from the Data Pipeline
 
 Data is loaded at query time from the processed chunk store in GCS. The pipeline output (`chunks_embedded.jsonl`) is read by `VectorSearch` in `ingest-service/src/rag/vector_search.py`, which performs ScaNN nearest-neighbour lookup to retrieve the top-k chunks for each query.
@@ -277,25 +326,34 @@ Data is loaded at query time from the processed chunk store in GCS. The pipeline
 - `ingest-service/src/rag/rag_service.py` — handles retrieval and Gemini prompt construction at query time
 
 ### 8.3 Code for Training Model and Selecting Best Model
+### 8.3 Code for Training Model and Selecting Best Model
 
 *Not applicable — no training is performed. Model selection is documented in Section 2.2.*
+*Not applicable — no training is performed. Model selection is documented in Section 2.2.*
 
+### 8.4 Code for Model Validation
 ### 8.4 Code for Model Validation
 
 Implemented in `ml-evaluation/run_validation.py`. Runs 5 held-out queries against the live RAG endpoint and computes RAGAS faithfulness and answer relevancy scores using `gemini-2.5-flash-lite` via Vertex AI as the judge LLM. Exits with code 1 if scores fall below thresholds, enabling use as a CI/CD gate.
 
-### 8.5 Code for Bias Checking
+### 8.5 Code for Bias Checking 
 
-Implemented in `ml-evaluation/run_bias_eval.py`. Slices the dataset by programming language, repo section, and chunk size, computes RAGAS scores per slice, flags slices more than 1.5 stdev below average, and outputs a structured JSON bias report to `reports/bias_report.json`. Supports `--dimension` and `--slice` flags for targeted reruns. Charts are generated by `ml-evaluation/plot_bias.py`.
+Slices the dataset by programming language, repo section, and chunk size, computes RAGAS scores per slice, flags slices more than 1.5 stdev below average, and outputs a structured JSON bias report to `reports/bias_report.json`. Supports `--dimension` and `--slice` flags for targeted reruns. Charts are generated by `ml-evaluation/plot_bias.py`.
 
+### 8.6 Code for Model Selection after Bias Checking
 ### 8.6 Code for Model Selection after Bias Checking
 
 Implemented in `ml-evaluation/select_prompt_version.py`. Loads all runs from `experiments.jsonl`, filters out any prompt version with a flagged bias slice, and ranks remaining versions by combined RAGAS score. V4 was selected as the final prompt version based on highest validation performance and passing bias checks across all slices.
 
 ### 8.7 Code to Push Model to Artifact Registry
+### 8.7 Code to Push Model to Artifact Registry
 
 *Not applicable — Gemini is accessed via the Vertex AI API. No model artifact exists to push. As noted in the guidelines, this step is not necessary for pre-trained large models.*
 
-In Otto's case, service versioning is handled via Docker images tagged with semantic version numbers and stored in GCP Artifact Registry. Each deployment creates a new Cloud Run revision pointing to the tagged image, enabling rollback via `gcloud run services update-traffic` and traffic splitting between revisions if needed.
+In Otto's case, service versioning is handled through two mechanisms: Docker images for the backend and ingest services are tagged with semantic version numbers and stored in GCP Artifact Registry, providing a full image version history. Each deployment to Cloud Run creates a new named revision pointing to the tagged image, enabling rollback to any previous revision and traffic splitting between versions if needed.
 
-The ingest service is deployed manually via `deploy-ingest.sh` using `gcloud run deploy --source=.`, configured with 2Gi memory, a 300 second timeout, and GCP environment variables injected at deploy time. The backend service is deployed automatically via GitHub Actions using the `github-actions-deploy@otto-pm.iam.gserviceaccount.com` service account on every push to `main`. Both services run in the `us-east1` region under the `otto-pm` GCP project.
+The ingest service is deployed manually via `deploy-ingest.sh`, which uses `gcloud run deploy --source=.` to build the Docker image from source and deploy it directly to Cloud Run in the `us-east1` region. The service is configured with 2Gi of memory, a 300 second request timeout, and the GCP project and GCS bucket environment variables injected at deploy time. The `--allow-unauthenticated` flag enables the RAG endpoint to be called by the frontend without requiring GCP credentials.
+
+The backend service is deployed automatically via GitHub Actions using a dedicated GCP service account (`github-actions-deploy@otto-pm.iam.gserviceaccount.com`), triggering on pushes to `main`. Both services run in the `us-east1` region under the `otto-pm` GCP project.
+
+- [ ] **TODO:** Confirm backend GitHub Actions deployment workflow and document whether Docker images are tagged and pushed to GCP Artifact Registry as part of the pipeline.
