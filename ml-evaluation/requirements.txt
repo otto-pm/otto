@@ -5,9 +5,4 @@ python-dotenv
 # Evaluation Suite
 ragas
 google-generativeai
-<<<<<<< HEAD
-git+https://github.com/BerriAI/litellm.git
-=======
-litellm
->>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
 matplotlib
