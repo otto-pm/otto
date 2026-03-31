@@ -116,7 +116,6 @@ RESPONSE:"""
 
         for i, chunk in enumerate(chunks[:max_chunks], 1):
             content = chunk.get('enriched_content', chunk.get('content', ''))
-
             if len(content) > 1500:
                 content = content[:1500] + "\n... (truncated)"
 
@@ -127,5 +126,4 @@ Type: {chunk.get('chunk_type', 'unknown')}
 
 {content}
 """)
-
         return '\n'.join(context_parts)
