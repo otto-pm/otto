@@ -231,7 +231,7 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --memory 1Gi \
-            --timeout 300 \
+            --timeout 500 \
             --set-env-vars "\
           GCP_PROJECT_ID=otto-pm,\
           GCS_BUCKET_RAW=otto-raw-repos,\
