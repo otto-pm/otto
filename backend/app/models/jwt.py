@@ -7,9 +7,10 @@ from app.models.github import UserId
 JWT: TypeAlias = str
 """JSON Web Token used for GitHub App authentication."""
 
+
 class SessionPayload(TypedDict):
     """Decoded JWT session token payload.
-    
+
     Attributes:
         iat: Issued at timestamp.
         exp: Expiration timestamp.
@@ -18,12 +19,14 @@ class SessionPayload(TypedDict):
     iat: int
     exp: int
     sub: UserId
-  
+
+
 class GitHubAppJWTPayload(TypedDict):
     """JWT payload for GitHub App authentication.
-    
+
     Attributes:
-        iat: Issued at timestamp (set 60 seconds in the past for clock drift).
+        iat: Issued at timestamp
+        (set 60 seconds in the past for clock drift).
         exp: Expiration timestamp (maximum 10 minutes from issue).
         iss: Issuer - the GitHub App ID.
     """

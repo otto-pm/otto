@@ -40,7 +40,7 @@ class GeminiClient:
                 )
             )
             return response.text
-            
+
         except Exception as e:
             error_msg = str(e)
             print(f"⚠️  Generation error: {error_msg}")
@@ -64,17 +64,17 @@ class GeminiClient:
             for chunk in response:
                 if chunk.text:
                     yield chunk.text
-                    
+
         except Exception as e:
             error_msg = str(e)
             yield f"\n⚠️  Error during generation: {error_msg[:200]}\n"
-    
+
     def generate_with_context(self, query: str, context_chunks: List[Dict],
-                             system_prompt: str, temperature: float = 0.2,
-                             max_tokens: int = 8192) -> str:
+                              system_prompt: str, temperature: float = 0.2,
+                              max_tokens: int = 8192) -> str:
         """Generate response with RAG context (non-streaming)"""
         context_text = self._build_context(context_chunks)
-        
+
         full_prompt = f"""{system_prompt}
 
 CONTEXT FROM CODEBASE:
@@ -84,15 +84,16 @@ USER QUERY:
 {query}
 
 RESPONSE:"""
-        
-        return self.generate(full_prompt, temperature=temperature, max_tokens=max_tokens)
-    
+
+        return self.generate(
+            full_prompt, temperature=temperature, max_tokens=max_tokens)
+
     def generate_with_context_stream(self, query: str, context_chunks: List[Dict],
                                      system_prompt: str, temperature: float = 0.2,
                                      max_tokens: int = 8192) -> Iterator[str]:
         """Generate response with RAG context (streaming)"""
         context_text = self._build_context(context_chunks)
-        
+
         full_prompt = f"""{system_prompt}
 
 CONTEXT FROM CODEBASE:
@@ -102,18 +103,22 @@ USER QUERY:
 {query}
 
 RESPONSE:"""
-        
-        yield from self.generate_stream(full_prompt, temperature=temperature, max_tokens=max_tokens)
-    
+
+        yield from self.generate_stream(
+            full_prompt,
+            temperature=temperature,
+            max_tokens=max_tokens
+        )
+
     def _build_context(self, chunks: List[Dict], max_chunks: int = 8) -> str:
         """Build context string from chunks"""
         context_parts = []
-        
+
         for i, chunk in enumerate(chunks[:max_chunks], 1):
             content = chunk.get('enriched_content', chunk.get('content', ''))
             if len(content) > 1500:
                 content = content[:1500] + "\n... (truncated)"
-            
+
             context_parts.append(f"""
 --- CHUNK {i} ---
 File: {chunk.get('file_path', 'unknown')}
