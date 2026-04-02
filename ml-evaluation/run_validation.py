@@ -78,11 +78,7 @@ def query_rag(question: str) -> dict:
         response.raise_for_status()
         return response.json()
     except Exception as e:
-<<<<<<< HEAD
         print(f"Request failed: {e}")
-=======
-        print(f"❌ Request failed: {e}")
->>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
         return {"answer": "", "sources": [], "chunks_used": 0}
 
 
@@ -100,11 +96,7 @@ def run_ragas_evaluation(queries: list, results: list) -> dict:
         project_id = os.getenv("GCP_PROJECT_ID", "otto-pm")
         location = os.getenv("GCP_REGION", "us-east1")
 
-<<<<<<< HEAD
         print("\nInitialising RAGAS with Vertex AI...")
-=======
-        print("\n🔧 Initialising RAGAS with Vertex AI...")
->>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
         os.environ["VERTEXAI_PROJECT"] = project_id
         os.environ["VERTEXAI_LOCATION"] = location
 
@@ -143,7 +135,6 @@ def run_ragas_evaluation(queries: list, results: list) -> dict:
                 )
                 faith_scores.append(f.value)
                 rel_scores.append(rv.value)
-<<<<<<< HEAD
                 print(f"  [{q['id']}] faithfulness={f.value:.3f}, relevancy={rv.value:.3f}")
             return faith_scores, rel_scores
 
@@ -152,16 +143,6 @@ def run_ragas_evaluation(queries: list, results: list) -> dict:
 
         if not faith_scores:
             print("No valid scores produced")
-=======
-                print(f"  ✓ [{q['id']}] faithfulness={f.value:.3f}, relevancy={rv.value:.3f}")
-            return faith_scores, rel_scores
-
-        print("📊 Running RAGAS evaluation...")
-        faith_scores, rel_scores = asyncio.run(score_all())
-
-        if not faith_scores:
-            print("⚠️  No valid scores produced")
->>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
             return {"faithfulness": None, "answer_relevancy": None}
 
         return {
@@ -170,19 +151,11 @@ def run_ragas_evaluation(queries: list, results: list) -> dict:
         }
 
     except ImportError as e:
-<<<<<<< HEAD
         print(f"Missing dependency: {e}")
         print("Run: pip install ragas google-generativeai litellm")
         return {"faithfulness": None, "answer_relevancy": None}
     except Exception as e:
         print(f"RAGAS evaluation failed: {e}")
-=======
-        print(f"⚠️  Missing dependency: {e}")
-        print("   Run: pip install ragas google-generativeai litellm")
-        return {"faithfulness": None, "answer_relevancy": None}
-    except Exception as e:
-        print(f"⚠️  RAGAS evaluation failed: {e}")
->>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
         return {"faithfulness": None, "answer_relevancy": None}
 
 
@@ -191,55 +164,33 @@ def run_ragas_evaluation(queries: list, results: list) -> dict:
 def log_run(run_data: dict):
     with open(EXPERIMENTS_LOG, "a") as f:
         f.write(json.dumps(run_data) + "\n")
-<<<<<<< HEAD
     print(f"Logged to {EXPERIMENTS_LOG}")
-=======
-    print(f"📝 Logged to {EXPERIMENTS_LOG}")
->>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
 
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def main():
     print(f"\n{'='*60}")
-<<<<<<< HEAD
     print(f"OTTO MODEL VALIDATION")
-=======
-    print(f"🔍 OTTO MODEL VALIDATION")
->>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
     print(f"{'='*60}")
     print(f"Endpoint: {INGEST_SERVICE_URL}")
     print(f"Repo:     {REPO}")
     print(f"Queries:  {len(VALIDATION_QUERIES)}")
-<<<<<<< HEAD
     print(f"Thresholds: faithfulness >= {FAITHFULNESS_THRESHOLD}, "
           f"answer_relevancy >= {ANSWER_RELEVANCY_THRESHOLD}")
-=======
-    print(f"Thresholds: faithfulness ≥ {FAITHFULNESS_THRESHOLD}, "
-          f"answer_relevancy ≥ {ANSWER_RELEVANCY_THRESHOLD}")
->>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
 
     results = []
     for i, q in enumerate(VALIDATION_QUERIES, 1):
         print(f"\n[{i}/{len(VALIDATION_QUERIES)}] {q['question']}")
         result = query_rag(q["question"])
         results.append(result)
-<<<<<<< HEAD
         print(f"  Answer: {result.get('answer', '')[:100]}...")
         print(f"  Chunks used: {result.get('chunks_used', 0)}")
-=======
-        print(f"  ✓ Answer: {result.get('answer', '')[:100]}...")
-        print(f"  ✓ Chunks used: {result.get('chunks_used', 0)}")
->>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
 
     scores = run_ragas_evaluation(VALIDATION_QUERIES, results)
 
     print(f"\n{'='*60}")
-<<<<<<< HEAD
     print(f"VALIDATION RESULTS")
-=======
-    print(f"📊 VALIDATION RESULTS")
->>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
     print(f"{'='*60}")
     print(f"Faithfulness:     {scores['faithfulness']} "
           f"(threshold: {FAITHFULNESS_THRESHOLD})")
@@ -248,7 +199,6 @@ def main():
 
     passed = True
     if scores["faithfulness"] is None or scores["answer_relevancy"] is None:
-<<<<<<< HEAD
         print("FAILED: RAGAS evaluation did not produce scores — cannot validate")
         passed = False
     else:
@@ -263,22 +213,6 @@ def main():
         print(f"VALIDATION PASSED")
     else:
         print(f"VALIDATION FAILED")
-=======
-        print("❌ FAILED: RAGAS evaluation did not produce scores — cannot validate")
-        passed = False
-    else:
-        if scores["faithfulness"] < FAITHFULNESS_THRESHOLD:
-            print(f"❌ FAILED: Faithfulness below threshold")
-            passed = False
-        if scores["answer_relevancy"] < ANSWER_RELEVANCY_THRESHOLD:
-            print(f"❌ FAILED: Answer relevancy below threshold")
-            passed = False
-
-    if passed:
-        print(f"✅ VALIDATION PASSED")
-    else:
-        print(f"❌ VALIDATION FAILED")
->>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
 
     if scores["faithfulness"] is not None:
         log_run({
@@ -299,11 +233,7 @@ def main():
             }
         })
     else:
-<<<<<<< HEAD
         print("Skipping log — no valid scores produced")
-=======
-        print("⚠️  Skipping log — no valid scores produced")
->>>>>>> a98c54ef (bias and validation checks complete, working on sensitivity)
 
     sys.exit(0 if passed else 1)
 
