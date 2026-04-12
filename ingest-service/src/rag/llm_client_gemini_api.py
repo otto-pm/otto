@@ -129,3 +129,8 @@ Type: {chunk.get('chunk_type', 'unknown')}
 """)
 
         return '\n'.join(context_parts)
+
+```typescript
+// Assuming `ragApi` has a method to update the Gemini model version
+// This would typically involve an API call to the backend.
+// Example of how such an API call
