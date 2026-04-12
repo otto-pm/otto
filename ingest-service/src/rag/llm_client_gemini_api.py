@@ -1,5 +1,6 @@
+```
 """
-LLM Client using Vertex AI (Gemini 1.5 Pro)
+LLM Client using Vertex AI (Gemini 2.5)
 WITH STREAMING SUPPORT
 """
 import os
@@ -20,7 +21,7 @@ class GeminiClient:
         self.location = location or os.getenv("GCP_REGION", "us-east1")
 
         vertexai.init(project=self.project_id, location=self.location)
-        self.model = GenerativeModel("gemini-2.5-flash")
+        self.model = GenerativeModel("gemini-2.5")
 
         print(f"✓ Vertex AI Gemini initialized")
         print(f"  Project: {self.project_id}, Location: {self.location}")
@@ -129,3 +130,4 @@ Type: {chunk.get('chunk_type', 'unknown')}
 """)
 
         return '\n'.join(context_parts)
+```
