@@ -7,6 +7,7 @@ export type Job = {
   id: string;
   issueId: string;
   issueTitle: string;
+  workspaceId: string;  // add this
   status: "running" | "done" | "error";
   type: JobType;
   question: string;
@@ -19,10 +20,10 @@ export type Job = {
 
 type JobsContextType = {
   jobs: Job[];
-  startJob: (issueId: string, issueTitle: string, question: string, type: JobType) => string;
+  startJob: (issueId: string, issueTitle: string, question: string, type: JobType, workspaceId: string) => string;
   appendChunk: (id: string, chunk: string) => void;
   finishJob: (id: string, status: "running" | "done" | "error", result?: Partial<Job>) => void;
-  getJob: (issueId: string, type: JobType) => Job | undefined;
+  getJob: (issueId: string, type: JobType, workspaceId: string) => Job | undefined;
 };
 
 const JobsContext = createContext<JobsContextType>(null!);
@@ -46,11 +47,11 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
     } catch { /* storage full or unavailable */ }
   }, [jobs]);
 
-  const startJob = (issueId: string, issueTitle: string, question: string, type: JobType) => {
+  const startJob = (issueId: string, issueTitle: string, question: string, type: JobType, workspaceId: string) => {
     const id = `${issueId}-${type}-${Date.now()}`;
     setJobs(prev => [
       ...prev,
-      { id, issueId, issueTitle, status: "running", type, question, answer: "" }
+      { id, issueId, issueTitle, workspaceId, status: "running", type, question, answer: "" }
     ]);
     return id;
   };
@@ -65,8 +66,8 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
     ));
   };
 
-  const getJob = (issueId: string, type: JobType) =>
-    jobs.filter(j => j.issueId === issueId && j.type === type).at(-1);
+  const getJob = (issueId: string, type: JobType, workspaceId: string) =>
+    jobs.filter(j => j.issueId === issueId && j.type === type && j.workspaceId === workspaceId).at(-1);
 
   return (
     <JobsContext.Provider value={{ jobs, startJob, appendChunk, finishJob, getJob }}>

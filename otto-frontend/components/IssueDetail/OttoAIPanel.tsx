@@ -41,7 +41,7 @@ function MarkdownContent({ content }: { content: string }) {
   );
 }
 
-export default function OttoAIPanel({ issueId, issueTitle }: { issueId: string; issueTitle: string }) {
+export default function OttoAIPanel({ issueId, issueTitle, workspaceId }: { issueId: string; issueTitle: string; workspaceId: string }) {
   const [question, setQuestion] = useState("");
   const [activeTab, setActiveTab] = useState<"qa" | "code" | "docs" | "search">("qa");
   const [repoName, setRepoName] = useState("");
@@ -63,14 +63,14 @@ export default function OttoAIPanel({ issueId, issueTitle }: { issueId: string; 
   
 
   const { startJob, appendChunk, finishJob, getJob } = useJobs();
-  const qaJob = getJob(issueId, "qa");
+  const qaJob = getJob(issueId, "qa", workspaceId);
   const answer = qaJob?.answer ?? "";
   const asking = qaJob?.status === "running";
   const sources = qaJob?.sources ?? [];
 
-  const codeJob = getJob(issueId, "code");
-  const docsJob = getJob(issueId, "docs");
-  const searchJob = getJob(issueId, "search");
+  const codeJob = getJob(issueId, "code", workspaceId);
+  const docsJob = getJob(issueId, "docs", workspaceId);
+  const searchJob = getJob(issueId, "search", workspaceId);
 
   const codeLoading = codeJob?.status === "running";
   const docsLoading = docsJob?.status === "running";
@@ -132,7 +132,7 @@ export default function OttoAIPanel({ issueId, issueTitle }: { issueId: string; 
       setIndexing(false);
     }
 
-    const jobId = startJob(issueId, issueTitle, question, "qa");
+    const jobId = startJob(issueId, issueTitle, question, "qa", workspaceId);
     try {
       const res = await ragApi.askStream(repoName, question);
       if (!res.ok) {
@@ -157,7 +157,7 @@ export default function OttoAIPanel({ issueId, issueTitle }: { issueId: string; 
 
   const handleSearch = async () => {
     if (!searchQuery.trim() || !repoName || searching) return;
-    const jobId = startJob(issueId, issueTitle, searchQuery, "search");
+    const jobId = startJob(issueId, issueTitle, searchQuery, "search", workspaceId);
     try {
       const res = await ragApi.search(repoName, searchQuery);
       finishJob(jobId, "done", { searchResults: res.results });
@@ -180,7 +180,7 @@ export default function OttoAIPanel({ issueId, issueTitle }: { issueId: string; 
 
   const handleCodeEdit = async () => {
     if (!codeContext.trim() || !repoName.trim() || codeLoading) return;
-    const jobId = startJob(issueId, issueTitle, codeContext, "code");
+    const jobId = startJob(issueId, issueTitle, codeContext, "code", workspaceId);
     try {
       const res = await ragApi.editCodeStream(repoName, codeContext, targetFile || undefined, pushToGithub);
       if (!res.ok) {
@@ -204,7 +204,7 @@ export default function OttoAIPanel({ issueId, issueTitle }: { issueId: string; 
 
   const handleGenerateDocs = async () => {
     if (!repoName.trim() || docsLoading) return;
-    const jobId = startJob(issueId, issueTitle, docType, "docs");
+    const jobId = startJob(issueId, issueTitle, docType, "docs", workspaceId);
     try {
       const res = await ragApi.generateDocsStream(repoName, docType, docTarget || undefined, pushToGithub);
       if (!res.ok) {

@@ -15,17 +15,18 @@ const STATUS_STYLES = {
   error: "bg-red-50 dark:bg-red-900/30 text-red-400",
 };
 
-export default function JobsView({ onSelectIssueById }: { onSelectIssueById: (issueId: string) => void }) {
+export default function JobsView({ onSelectIssueById, workspaceId }: { onSelectIssueById: (issueId: string) => void; workspaceId: string }) {
   const { jobs } = useJobs();
+  const workspaceJobs = [...jobs].filter(j => j.workspaceId === workspaceId).reverse();
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
       <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">All Jobs</h2>
-      {jobs.length === 0 ? (
+      {workspaceJobs.length === 0 ? (
         <p className="text-sm text-gray-400 dark:text-gray-500">No jobs have been run yet.</p>
       ) : (
         <div className="space-y-2">
-          {[...jobs].reverse().map(job => (
+          {workspaceJobs.map(job => (
             <button
               key={job.id}
               onClick={() => onSelectIssueById(job.issueId)}

@@ -33,7 +33,7 @@ export default function OttoPM({ defaultView = "Board" }: { defaultView?: View }
   const switcherRef = useRef<HTMLDivElement>(null);
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
   const { jobs } = useJobs();
-  const runningJobs = jobs.filter(j => j.status === "running");
+  const runningJobs = jobs.filter(j => j.status === "running" && j.workspaceId === workspaceId);
 
   const handleSelectIssueById = (issueId: string) => {
     const issue = issues.find(i => i.id === issueId);
@@ -404,7 +404,7 @@ export default function OttoPM({ defaultView = "Board" }: { defaultView?: View }
           <>
             {view === "Board"  && <BoardView   issues={issues} loading={issuesLoading} search={search} members={members} onSelectIssue={handleSelectIssue} onCreateIssue={handleCreateIssue} onMoveIssue={handleMoveIssue} onDeleteIssue={handleDeleteIssue} />}
             {view === "Issues" && <BacklogView issues={issues} loading={issuesLoading} search={search} members={members} onSelectIssue={handleSelectIssue} onCreateIssue={handleCreateIssue} onDeleteIssue={handleDeleteIssue} />}
-            {view === "Jobs"   && <JobsView onSelectIssueById={handleSelectIssueById} />}
+            {view === "Jobs" && <JobsView onSelectIssueById={handleSelectIssueById} workspaceId={workspaceId ?? ""} />}
           </>
         ) : null}
       </div>
