@@ -129,3 +129,4 @@ Type: {chunk.get('chunk_type', 'unknown')}
 """)
 
         return '\n'.join(context_parts)
+
