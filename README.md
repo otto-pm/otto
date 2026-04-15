@@ -1,638 +1,229 @@
-# OTTO
+# Otto: AI-Powered Project Management Solution
 
-**An AI-Powered Project Management Solution with RAG**
+![Otto Logo Placeholder](https://via.placeholder.com/150/007bff/ffffff?text=Otto+PM)
 
-Otto is an intelligent project management tool for software teams that connects directly to your GitHub repositories. It uses Retrieval-Augmented Generation (RAG) to understand your codebase and provide contextual Q&A, automated documentation generation, intelligent code completion, and AI-powered code editing — all from a single platform.
+## 1. Project Title and Description
+
+**Otto** is an advanced, AI-powered project management solution designed to streamline development workflows, enhance team collaboration, and automate tedious tasks. By leveraging cutting-edge artificial intelligence, Otto provides intelligent assistance throughout the software development lifecycle, from code generation and documentation to smart task management and insightful analytics.
+
+Built with a robust backend in Python (FastAPI) and a dynamic frontend in TypeScript (React/Next.js), Otto integrates seamlessly with GitHub, offering a comprehensive platform for modern software teams.
+
+## 2. Features
+
+Otto offers a suite of powerful features to revolutionize your project management experience:
+
+*   **AI-Powered Code Completion**: Get contextually aware code suggestions and completions directly within your repository. Otto intelligently detects the relevant file based on semantic similarity and provides highly accurate code snippets, accelerating development.
+    *   *How it works*: Provide a code snippet, and Otto searches the indexed repository for the most similar code, auto-detects the file, and generates a contextually aware completion.
+*   **Automated Documentation Generation**: Generate comprehensive documentation for your API endpoints, modules, and READMEs with a single command. Otto can even push these generated documents directly to a new branch and create a Pull Request on GitHub.
+    *   Supports various documentation types (e.g., `api`, `module`, `readme`).
+*   **Secure GitHub OAuth Authentication**: Seamless and secure user authentication and session management using GitHub's OAuth 2.0. This ensures a streamlined onboarding process and leverages GitHub's robust security features.
+    *   Includes CSRF protection during the OAuth flow and secure handling of session tokens via HTTP-only cookies and JSON Web Tokens (JWTs).
+*   **Advanced Code Ingestion & Analysis**: An intelligent ingestion service processes your codebase, performing deep analysis including:
+    *   Enhanced code chunking for optimal AI model input.
+    *   Extraction of Python type hints, decorators, and JavaScript/TypeScript imports for richer context.
+    *   Management of documentation and code edits locally before pushing to GitHub.
+*   **Comprehensive GitHub Integration**:
+    *   Fetch file content directly from GitHub repositories.
+    *   Create new branches and push code changes or generated documentation as Pull Requests.
+    *   Manage repository access and user metadata.
+*   **Intuitive Frontend for Project Management**: A responsive and interactive user interface built with TypeScript, providing tools for:
+    *   Issue tracking and management.
+    *   Sprint planning and visualization.
+    *   Utilities for UI enhancements (e.g., `hexToRgba`, `calculateInsertPosition`, `moveItemWithinArray`).
+
+## 3. Installation
+
+To set up Otto locally, follow these steps. This project consists of multiple services (frontend, backend, ingestion service) and requires Node.js and Python.
+
+### Prerequisites
+
+*   Git
+*   Node.js (LTS version recommended)
+*   npm or yarn
+*   Python 3.9+
+*   Poetry (for Python dependency management, recommended) or pip
+*   Docker (optional, for containerized deployment)
+
+### Steps
+
+1.  **Clone the Repository:**
+
+    ```bash
+    git clone https://github.com/otto-pm/otto.git
+    cd otto
+    ```
+
+2.  **Backend & Ingestion Service Setup (Python):**
+
+    ```bash
+    # Navigate to the backend directory
+    cd backend
+    poetry install # or pip install -r requirements.txt
+    
+    # Navigate to the ingest-service directory
+    cd ../ingest-service
+    poetry install # or pip install -r requirements.txt
+    ```
+
+3.  **Frontend Setup (TypeScript):**
+
+    ```bash
+    cd ../frontend
+    npm install # or yarn install
+    ```
+
+4.  **Environment Variables:**
+    Create `.env` files in the `backend`, `ingest-service`, and `frontend` directories based on provided `.env.example` files (if any, otherwise create them manually).
+
+    **Common Environment Variables:**
+
+    *   `GITHUB_CLIENT_ID`: Your GitHub OAuth Application Client ID.
+    *   `GITHUB_CLIENT_SECRET`: Your GitHub OAuth Application Client Secret.
+    *   `GITHUB_TOKEN`: A personal access token with `repo` scope for the `ingest-service` to interact with GitHub (e.g., pushing docs).
+    *   `JWT_SECRET_KEY`: A strong secret key for signing JWTs.
+    *   `FRONTEND_URL`: The URL where your frontend application will be hosted (e.g., `http://localhost:3000`).
+    *   `BACKEND_URL`: The URL where your backend API will be hosted (e.g., `http://localhost:8000`).
+    *   `INGEST_SERVICE_URL`: The URL for the ingestion service (e.g., `http://localhost:8001`).
+    *   `OUTPUT_DIR`: (For `ingest-service`) Directory to save generated files locally (default: `./output`).
+
+    **Example `.env` for `backend`:**
+    ```env
+    GITHUB_CLIENT_ID=your_github_client_id
+    GITHUB_CLIENT_SECRET=your_github_client_secret
+    JWT_SECRET_KEY=supersecretjwtkey
+    FRONTEND_URL=http://localhost:3000
+    ```
+
+    **Example `.env` for `ingest-service`:**
+    ```env
+    GITHUB_TOKEN=ghp_yourpersonalaccesstoken
+    OUTPUT_DIR=./output
+    ```
+
+    **Example `.env` for `frontend`:**
+    ```env
+    NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
+    NEXT_PUBLIC_INGEST_SERVICE_URL=http://localhost:8001
+    ```
+
+## 4. Usage
+
+### Running the Services
+
+1.  **Start the Backend API:**
+    ```bash
+    cd backend
+    poetry run uvicorn main:app --reload --port 8000
+    ```
+
+2.  **Start the Ingestion Service:**
+    ```bash
+    cd ingest-service
+    poetry run uvicorn main:app --reload --port 8001
+    ```
+
+3.  **Start the Frontend:**
+    ```bash
+    cd frontend
+    npm run dev # or yarn dev
+    ```
+
+Once all services are running, navigate to `http://localhost:3000` (or your configured `FRONTEND_URL`) in your web browser.
+
+### Interacting with the API
+
+You can interact with the backend and ingestion services directly via their API endpoints.
+
+#### Example: AI-Powered Code Completion (Ingestion Service)
+
+```bash
+curl -X POST https://ingest-service-484671782718.us-east1.run.app/pipeline/code/complete \
+  -H "Content-Type: application/json" \
+  -d '{
+    "repo_full_name": "owner/repo",
+    "code_context": "def calculate_total(items):\n    total = 0\n    for item in items:",
+    "language": "python",
+    "github_token": "YOUR_GITHUB_TOKEN"
+  }'
+```
+
+#### Example: Generate Documentation (Ingestion Service)
+
+```bash
+curl -X POST https://ingest-service-484671782718.us-east1.run.app/pipeline/docs/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "repo_full_name": "owner/repo",
+    "target": "src/main.py",
+    "doc_type": "module",
+    "push_to_github": false,
+    "github_token": "YOUR_GITHUB_TOKEN"
+  }'
+```
+
+## 5. API Reference
+
+Otto exposes several API endpoints across its backend and ingestion services. Detailed API documentation is available within the project repository.
+
+### Authentication System API
+
+The authentication system handles user login, session management, and GitHub OAuth integration.
+
+*   **`GET /login`**: Initiates the GitHub OAuth authentication flow.
+*   **`GET /auth/callback`**: Callback endpoint for GitHub OAuth, exchanges authorization code for tokens.
+*   **`GET /logout`**: Logs out the current user.
+*   **`GET /me`**: Retrieves information about the currently authenticated user.
+
+For comprehensive details on the Authentication API, refer to:
+*   `backend/docs/api/otto-pm-otto_authentication-system_*.md`
+
+### Ingestion Service API
+
+The ingestion service provides AI-powered functionalities like code completion and documentation generation.
+
+*   **`POST /pipeline/code/complete`**: Generates AI-powered code completions based on a given context.
+*   **`POST /pipeline/docs/generate`**: Generates documentation for specified files or modules.
+
+For more details on the Ingestion Service API, refer to the `Data-Pipeline-Guide.md` and relevant source files in `ingest-service/src/`.
+
+## 6. Configuration
+
+Configuration for Otto is primarily managed through environment variables. Ensure you have set up the `.env` files as described in the [Installation](#4-installation) section.
+
+Key configuration points include:
+
+*   **GitHub OAuth Credentials**: `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`
+*   **GitHub Personal Access Token**: `GITHUB_TOKEN` (for `ingest-service` to perform repository actions)
+*   **JWT Secret**: `JWT_SECRET_KEY` (for secure session management)
+*   **Service URLs**: `FRONTEND_URL`, `BACKEND_URL`, `INGEST_SERVICE_URL`
+*   **Local Output Directory**: `OUTPUT_DIR` (for `ingest-service` to store generated files temporarily)
+
+## 7. Contributing
+
+We welcome contributions to Otto! If you're interested in improving the project, please follow these guidelines:
+
+1.  **Fork the repository.**
+2.  **Clone your forked repository:**
+    ```bash
+    git clone https://github.com/your-username/otto.git
+    cd otto
+    ```
+3.  **Create a new branch** for your feature or bug fix:
+    ```bash
+    git checkout -b feature/your-feature-name
+    ```
+4.  **Make your changes.** Ensure your code adheres to the project's coding standards.
+5.  **Test your changes.**
+6.  **Commit your changes** with a clear and descriptive commit message.
+7.  **Push your branch** to your forked repository.
+8.  **Open a Pull Request** against the `main` branch of the original `otto-pm/otto` repository.
+
+Please ensure your pull requests are well-documented and include any necessary tests.
+
+## 8. License
+
+This project is licensed under the [MIT License](LICENSE).
 
 ---
 
-## Features
-
-### Core RAG Services
-- **Q&A Agent** — Ask natural language questions about your codebase and get accurate, context-aware answers with source references
-- **Documentation Generator** — Auto-generate API docs, user guides, technical docs, and READMEs from your code
-- **Code Completion** — Get intelligent code suggestions based on patterns in your actual codebase
-- **Code Editor** — Modify code with natural language instructions, with automatic PR creation
-
-### Pipeline & Infrastructure
-- **Automated Ingestion** — Connect a GitHub repo and Otto ingests, chunks, and embeds your code automatically
-- **Smart Caching** — Commit tracking ensures re-indexing only happens when new code is pushed
-- **Webhook Auto-Sync** — Push to main and embeddings update automatically in the background
-- **Login Sync** — Missed updates while logged out are detected and synced on next login
-- **Streaming Responses** — Real-time SSE streaming for all RAG services
-- **Multi-User Support** — Shared chunk storage with per-user access tracking and preferences
-
-### GitHub Integration
-- **OAuth Authentication** — Sign in with GitHub, access private repos
-- **GitHub App** — Installation-level access with fine-grained permissions
-- **PR Creation** — Code edits and documentation can be pushed as pull requests directly
-- **Branch Protection** — Webhook only triggers on the tracked branch
-
----
-
-## Architecture
-```
-┌──────────────┐       ┌──────────────────┐       ┌──────────────────────┐
-│   Frontend   │──────▶│  Backend Service  │──────▶│   Ingest Service     │
-│  (Next.js)   │       │    (FastAPI)      │       │     (FastAPI)        │
-└──────────────┘       └──────────────────┘       └──────────────────────┘
-                              │                           │
-                              │                           │
-                       ┌──────┴──────┐            ┌───────┴────────┐
-                       │  Firebase   │            │  Google Cloud  │
-                       │  Firestore  │            │    Storage     │
-                       │  (Users)    │            │  (Raw + Chunks)│
-                       └─────────────┘            └───────┬────────┘
-                                                          │
-                                                  ┌───────┴────────┐
-                                                  │   Vertex AI    │
-                                                  │  Embeddings +  │
-                                                  │  Gemini LLM    │
-                                                  └────────────────┘
-```
-
-### Service Responsibilities
-
-| Service | Responsibilities |
-|---------|-----------------|
-| **Frontend** | UI, authentication flow, dashboard, chat interface |
-| **Backend** | Auth, user management, access control, user tracking, webhook handling |
-| **Ingest Service** | RAG pipeline (ingest → chunk → embed), Q&A, docs, code completion, code editing, vector search |
-
-### Data Flow
-```
-GitHub Push → Webhook → Backend → Ingest Service → GCS Buckets
-     │                                                   │
-     │                              Ingest: GitHub API → Raw Bucket
-     │                              Chunk:  Tree-sitter → Processed Bucket
-     │                              Embed:  Vertex AI  → Processed Bucket (updated)
-     │
-User Query → Backend (auth) → Ingest Service → Vector Search → Gemini → Response
-```
-
----
-
-## Tech Stack
-
-| Layer | Technologies |
-|-------|-------------|
-| **Frontend** | Next.js 14, React, Tailwind CSS |
-| **Backend** | FastAPI, Python 3.11, Firebase Admin |
-| **Ingest Service** | FastAPI, Tree-sitter, Vertex AI, Gemini |
-| **Database** | Firestore (users), Cloud Storage (code/chunks) |
-| **ML/AI** | Vertex AI Embeddings (text-embedding-004), Gemini 1.5 Flash |
-| **Auth** | GitHub OAuth, GitHub App, JWT sessions |
-| **Infrastructure** | GCP Cloud Run, Artifact Registry, Cloud Build |
-| **Dev Tools** | Docker, gcloud CLI, smee.io (webhook dev) |
-
----
-
-## Project Structure
-```
-otto/
-├── Data-Pipeline                # MLOps pipeline (DVC + Airflow)
-|   ├── dags                     # Airflow DAG definition
-│   ├── data
-│   │   ├── processed            # Chunks, embeddings, validation reports
-│   │   └── raw                  # Ingested repo metadata
-│   ├── logs                     # Pipeline execution logs
-│   ├── scripts                  # DVC/Airflow stage runner
-│   └── tests                    # 69 pytest tests (acquisition, preprocessing, embedding)
-│
-├── backend                      # FastAPI auth + orchestration service
-│   ├── app
-│   │   ├── clients              # HTTP clients (Firebase, GitHub, ingest-service)
-│   │   ├── dependencies         # JWT auth middleware
-│   │   ├── models               # Pydantic models (user, issue, jwt, workspace)
-│   │   ├── routes               # auth, github, rag, user, webhook endpoints
-│   │   ├── services             # Business logic (user, workspace management)
-│   │   └── utils                # Auth helpers
-│   └── docs
-│       └── api                  # Auto-generated API documentation
-│
-├── deliverables
-│   └── scoping                  # Project scoping + user needs documents
-│
-├── frontend                     # Next.js 14 web application
-│   ├── app
-│   │   ├── api
-│   │   │   └── rag              # SSE streaming proxies
-│   │   │       ├── ask
-│   │   │       │   └── stream
-│   │   │       ├── code
-│   │   │       │   └── edit
-│   │   │       │       └── stream
-│   │   │       └── docs
-│   │   │           └── generate
-│   │   │               └── stream
-│   │   ├── auth
-│   │   │   ├── callback         # GitHub OAuth callback
-│   │   │   └── install          # GitHub App installation
-│   │   └── project
-│   │       ├── backlog          # Sprint backlog view
-│   │       ├── board            # Kanban board view
-│   │       └── roadmap          # Roadmap / epics view
-│   ├── assets
-│   │   └── readme               # README screenshots and images
-│   ├── components               # 60+ React components
-│   │   ├── auth                 # Auth token handling
-│   │   ├── backlog              # Backlog list + sprint grouping
-│   │   ├── board                # Kanban board columns + cards
-│   │   ├── form                 # Reusable form fields
-│   │   ├── issue                # Issue CRUD + details
-│   │   │   └── issue-details
-│   │   │       └── issue-details-info
-│   │   ├── modals               # Dialog modals
-│   │   │   ├── alert
-│   │   │   ├── auth
-│   │   │   ├── board-issue-details
-│   │   │   ├── complete-sprint
-│   │   │   │   └── form
-│   │   │   │       └── fields
-│   │   │   ├── start-sprint
-│   │   │   │   └── form
-│   │   │   │       └── fields
-│   │   │   └── update-sprint
-│   │   │       └── form
-│   │   │           └── fields
-│   │   ├── otto-agent           # AI assistant panel
-│   │   ├── roadmap              # Epics table + roadmap header
-│   │   ├── text-editor          # Lexical rich text editor
-│   │   │   ├── context
-│   │   │   ├── plugins
-│   │   │   ├── theme
-│   │   │   └── ui
-│   │   └── ui                   # Shared UI primitives (buttons, modals, tooltips)
-│   ├── config                   # Site configuration
-│   ├── context                  # React context providers (auth, filters, issues)
-│   ├── hooks                    # Custom React hooks
-│   │   └── query-hooks
-│   │       └── use-issues       # Issue CRUD hooks
-│   ├── styles                   # Global CSS + split pane styles
-│   └── utils
-│       └── api                  # API client + endpoint helpers
-│
-├── ingest-service               # Core pipeline + RAG service
-│   ├── app
-│   │   └── routes               # Pipeline + RAG endpoints (pipeline.py)
-│   ├── scripts                  # CLI tools (ingest, embed, RAG CLI)
-│   └── src
-│       ├── chunking             # Tree-sitter parsing + Vertex AI embeddings
-│       ├── github               # GitHub push/PR operations
-│       ├── ingestion            # GitHub repo → GCS ingestion
-│       ├── rag                  # Q&A, docs, completion, editing, vector search
-│       ├── utils                # Storage paths, commit tracking, file management
-│       └── validation           # Schema validation, anomaly + bias detection
-│
-└── style-checker                # PEP8 style checking utilities
-├── Data-Pipeline-Guide.md           # Comprehensive pipeline testing guide
-├── README.md
-├── setup-env.sh, setup-env.bat      # Environment setup scripts
-└── requirements.txt
-```
-
----
-
-## Prerequisites
-
-- **Python** 3.11+
-- **Node.js** 18+ (for frontend)
-- **Docker** (for containerized deployment)
-- **GCP Account** with billing enabled
-- **GitHub Account**
-- **Gemini API Key** — free from [Google AI Studio](https://aistudio.google.com/app/apikey)
-
----
-
-## Setup
-
-### 1. Clone the Repository
-```bash
-git clone https://github.com/otto-pm/otto.git
-cd otto
-```
-
-### 2. Configure Environment Variables
-
-Create `otto/.env` (shared config):
-```bash
-# GCP
-GCP_PROJECT_ID=otto-pm
-GCS_BUCKET_RAW=otto-raw-repos
-GCS_BUCKET_PROCESSED=otto-processed-chunks
-GEMINI_API_KEY=your_gemini_api_key
-
-# GitHub App
-GITHUB_APP_ID=your_app_id
-GITHUB_CLIENT_ID=your_client_id
-GITHUB_CLIENT_SECRET=your_client_secret
-GITHUB_PRIVATE_KEY_PATH=./github-private-key.pem
-GITHUB_CALLBACK_URL=http://localhost:8000/auth/github/callback
-
-# Webhook
-GITHUB_WEBHOOK_SECRET=your_webhook_secret
-
-# Services
-INGEST_SERVICE_URL=http://localhost:8081
-FRONTEND_URL=http://localhost:3000
-```
-
-Create `backend/.env.local` (backend-specific):
-```bash
-FIREBASE_CREDENTIALS_PATH=./firebase-credentials.json
-FIREBASE_PROJECT_ID=otto-pm
-JWT_SECRET_KEY=generate_with_python_secrets_token_urlsafe_32
-```
-
-### 3. GCP Setup
-```bash
-# Authenticate
-gcloud auth login
-gcloud config set project otto-pm
-
-# Enable APIs
-gcloud services enable \
-  run.googleapis.com \
-  cloudbuild.googleapis.com \
-  artifactregistry.googleapis.com \
-  storage.googleapis.com \
-  aiplatform.googleapis.com
-
-# Create storage buckets
-gsutil mb -p otto-pm -l us-central1 gs://otto-raw-repos
-gsutil mb -p otto-pm -l us-central1 gs://otto-processed-chunks
-```
-## Data Version Control (DVC)
-
-We use DVC to track large data files and models. Data is stored in Google Cloud Storage.
-
-## Data Pipeline Guide
-
-For detailed instructions on running and testing the data pipeline (required for the MLOps deliverable), see:
-
-**[Data-Pipeline-Guide.md](./Data-Pipeline-Guide.md)**
-
-This guide covers:
-- **Environment setup** — Python 3.11 venv, GCP authentication, environment variables (cross-platform)
-- **Running the deployed pipeline** — `curl` commands for all endpoints (ingest, chunk, embed, RAG, search, docs, code editing)
-- **Running the DVC pipeline locally** — `dvc dag`, `dvc repro`, stage-by-stage execution
-- **Code structure** — Repository layout, service responsibilities, architecture diagram
-- **Test suite** — 69 pytest tests across 3 modules
-- **Data validation** — Schema validation, anomaly detection, bias detection
-- **Reproducibility & data versioning** — `dvc.lock` hashing, `dvc push/pull`, reproducing previous runs
-
-
-### First-time setup
-
-```bash
-pip install dvc dvc-gs
-gcloud auth application-default login
-```
-
-### Pull existing data
-
-```bash
-dvc pull
-```
-
-### Track new or updated data
-
-**Important:** Always run `dvc add` before `git add` to avoid committing large files.
-
-```bash
-dvc add data/raw/your-file.csv       # 1. DVC tracks data, creates .dvc file
-git add data/raw/your-file.csv.dvc   # 2. Git tracks the .dvc pointer
-git commit -m "Add/update dataset"
-dvc push                              # Upload data to GCS
-git push                              # Push .dvc file to GitHub
-```
-
----
-
-### 4. GitHub App Setup
-
-1. Go to [GitHub Developer Settings](https://github.com/settings/apps) → New GitHub App
-2. Set **Homepage URL**: `http://localhost:8000`
-3. Set **Callback URL**: `http://localhost:8000/auth/github/callback`
-4. Set **Webhook URL**: Your smee.io URL (for development)
-5. Set **Webhook Secret**: Same as `GITHUB_WEBHOOK_SECRET` in `.env`
-6. Enable permissions: Repository contents (read), Pull requests (write), Webhooks
-7. Subscribe to events: Push
-8. Download the private key and save as `backend/github-private-key.pem`
-
-### 5. Firebase Setup
-
-1. Create a Firebase project at [Firebase Console](https://console.firebase.google.com)
-2. Enable Firestore
-3. Generate a service account key
-4. Save as `backend/firebase-credentials.json`
-
----
-
-## Running Locally
-
-### Backend (port 8000)
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-```
-
-### Ingest Service (port 8081)
-```bash
-cd ingest-service
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8081
-```
-
-### Frontend (port 3000)
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-### Webhook Development (smee.io)
-```bash
-npx smee-client -u https://smee.io/YOUR_CHANNEL --target http://localhost:8000/webhook/github
-```
-
----
-
-## Deployment (GCP Cloud Run)
-
-### Deploy Ingest Service
-```bash
-cd ingest-service
-gcloud run deploy ingest-service \
-  --source . \
-  --region us-east1 \
-  --platform managed \
-  --allow-unauthenticated \
-  --memory 2Gi \
-  --timeout 300 \
-  --set-env-vars "\
-GCP_PROJECT_ID=otto-pm,\
-GCS_BUCKET_RAW=otto-raw-repos,\
-GCS_BUCKET_PROCESSED=otto-processed-chunks,\
-GEMINI_API_KEY=your_key"
-```
-
-### Deploy Backend
-```bash
-cd backend
-gcloud run deploy backend-service \
-  --source . \
-  --region us-east1 \
-  --platform managed \
-  --allow-unauthenticated \
-  --memory 1Gi \
-  --timeout 300 \
-  --set-env-vars "\
-GCP_PROJECT_ID=otto-pm,\
-GCS_BUCKET_RAW=otto-raw-repos,\
-GCS_BUCKET_PROCESSED=otto-processed-chunks,\
-INGEST_SERVICE_URL=https://ingest-service-xxxxx.us-east1.run.app,\
-FIREBASE_CREDENTIALS_PATH=./firebase-credentials.json,\
-FIREBASE_PROJECT_ID=otto-pm,\
-GITHUB_PRIVATE_KEY_PATH=./github-private-key.pem,\
-GITHUB_APP_ID=your_app_id,\
-GITHUB_CLIENT_ID=your_client_id,\
-GITHUB_CLIENT_SECRET=your_secret,\
-GITHUB_CALLBACK_URL=https://backend-service-xxxxx.us-east1.run.app/auth/github/callback,\
-JWT_SECRET_KEY=your_jwt_secret,\
-GITHUB_WEBHOOK_SECRET=your_webhook_secret"
-```
-
-### Post-Deployment
-
-1. Update GitHub App callback URL to your Cloud Run backend URL
-2. Update GitHub App webhook URL to `https://your-backend-url/webhook/github`
-3. Grant Cloud Run service account access to GCS buckets:
-```bash
-SERVICE_ACCOUNT=YOUR_PROJECT_NUMBER-compute@developer.gserviceaccount.com
-
-gsutil iam ch serviceAccount:$SERVICE_ACCOUNT:roles/storage.objectAdmin gs://otto-raw-repos
-gsutil iam ch serviceAccount:$SERVICE_ACCOUNT:roles/storage.objectAdmin gs://otto-processed-chunks
-
-gcloud projects add-iam-policy-binding otto-pm \
-  --member="serviceAccount:$SERVICE_ACCOUNT" \
-  --role="roles/aiplatform.user"
-```
-
-### Deployed Services
-
-| Service | URL |
-|---------|-----|
-| Backend | `https://backend-service-484671782718.us-east1.run.app` |
-| Ingest | `https://ingest-service-484671782718.us-east1.run.app` |
-
----
-
-## API Reference
-
-### Authentication
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/auth/login` | GET | Initiate GitHub OAuth flow |
-| `/auth/github/callback` | GET | OAuth callback handler |
-| `/auth/logout` | POST | Clear session |
-
-### Pipeline
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/rag/repos/pipeline` | POST | Run full pipeline (ingest → chunk → embed) |
-| `/rag/repos/ingest` | POST | Ingest repository from GitHub |
-| `/rag/repos/process` | POST | Chunk repository code |
-| `/rag/repos/embed` | POST | Generate embeddings |
-
-### RAG Services
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/rag/ask` | POST | Ask a question about the codebase |
-| `/rag/docs/generate` | POST | Generate documentation |
-| `/rag/code/complete` | POST | Get code completion |
-| `/rag/code/edit` | POST | Edit code with instructions |
-| `/rag/search` | POST | Search code semantically |
-
-### Streaming
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/rag/ask/stream` | POST | Q&A with streaming response |
-| `/rag/docs/generate/stream` | POST | Documentation with streaming |
-| `/rag/code/edit/stream` | POST | Code editing with streaming |
-
-### Repository Management
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/rag/repos/user/history` | GET | User's repo access history |
-| `/rag/repos/user/all` | GET | List all user's GitHub repos |
-| `/rag/repos/{owner}/{repo}/status` | GET | Pipeline status for a repo |
-| `/rag/repos/{owner}/{repo}/commit-history` | GET | Processing history |
-| `/rag/repos/{owner}/{repo}/access` | GET | Check user's repo access |
-| `/rag/repos/indexed` | GET | List all indexed repos |
-
-### Webhooks
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/webhook/github` | POST | GitHub webhook receiver |
-| `/webhook/active-sessions` | GET | View active webhook sessions |
-
-### User Preferences
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/rag/repos/user/preferences` | POST | Save repo preferences |
-| `/rag/repos/{owner}/{repo}/preferences` | GET | Get repo preferences |
-
-### Health & Stats
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/rag/health` | GET | Backend + ingest service health |
-| `/rag/stats` | GET | System statistics |
-
----
-
-## RAG Pipeline Details
-
-### 1. Ingestion
-
-The ingester connects to GitHub's API, fetches the repository tree, filters for code files, and uploads them to Cloud Storage.
-
-**Supported languages:** Python, JavaScript, TypeScript, Java, Go, Rust, Ruby, PHP, Swift, Kotlin, Scala, SQL, HTML, CSS, YAML, JSON, Markdown
-
-**Excluded paths:** `node_modules`, `venv`, `__pycache__`, `.git`, `dist`, `build`, `coverage`
-
-### 2. Chunking
-
-The enhanced chunker uses tree-sitter for semantic parsing and extracts rich context for each chunk including type hints, docstrings, decorators, imports, and exception handling.
-
-**Default settings:** 150 lines per chunk, 10 lines overlap
-
-### 3. Embedding
-
-Embeddings are generated using Vertex AI's `text-embedding-004` model in batches of 25, producing 768-dimensional vectors stored alongside the chunks.
-
-### 4. Vector Search
-
-Queries are embedded and compared against chunk embeddings using cosine similarity to find the most relevant code sections, which are then passed to Gemini for response generation.
-
----
-
-## Webhook Flow
-```
-Developer pushes to main
-        │
-        ▼
-GitHub sends push event → Backend /webhook/github
-        │
-        ├── Verify HMAC signature
-        ├── Check: Is repo indexed?
-        ├── Check: Is repo owner logged in?
-        ├── Check: Is push to tracked branch?
-        │
-        ▼
-Queue background pipeline
-        │
-        ├── Ingest (fetch new files)
-        ├── Chunk (re-process code)
-        └── Embed (regenerate vectors)
-        │
-        ▼
-RAG is now up-to-date with latest code
-```
-
-If the user was logged out during the push, the sync happens automatically on next login.
-
----
-
-## Cost Estimate
-
-### Development (Free Tier)
-
-| Service | Cost |
-|---------|------|
-| Gemini API | Free (15 req/min, 1M tokens/day) |
-| Cloud Storage | ~$0.50/month |
-| Vertex AI Embeddings | ~$0.025 per 1K embeddings |
-| Cloud Run | Free tier covers light usage |
-| **Total** | **~$5-10/month** |
-
-### Production
-
-| Service | Cost |
-|---------|------|
-| Cloud Run (2 services) | ~$10-20/month (scales to zero) |
-| Cloud Storage | ~$1-5/month |
-| Vertex AI | ~$5-15/month |
-| **Total** | **~$20-40/month** |
-
----
-
-## Troubleshooting
-
-### Authentication Errors
-```bash
-gcloud auth application-default login
-gcloud auth list
-```
-
-### Bucket Permission Denied
-```bash
-# Grant access to Cloud Run service account
-gsutil iam ch serviceAccount:YOUR_SA:roles/storage.objectAdmin gs://BUCKET_NAME
-```
-
-### Webhook Not Triggering
-
-1. Check smee.io page for incoming events
-2. Verify webhook secret matches in GitHub App and `.env`
-3. Ensure the push is to the tracked branch (usually `main`)
-4. Confirm user is logged in (check `/webhook/active-sessions`)
-
-### Ingest Service Unreachable
-```bash
-# Check health
-curl https://ingest-service-xxxxx.us-east1.run.app/health
-
-# Check logs
-gcloud run services logs read ingest-service --region=us-east1
-```
-
-### Cloud Run Build Failures
-```bash
-# Check build logs
-gcloud builds list --region=us-east1
-gcloud builds log BUILD_ID --region=us-east1
-```
-
----
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Commit changes: `git commit -m 'Add your feature'`
-4. Push to branch: `git push origin feature/your-feature`
-5. Open a Pull Request
-
----
-
-## License
-
-MIT License. See [LICENSE](LICENSE) for details.
-
----
-
-**Built with care for the Otto Project — Northeastern University**
+**Otto: Empowering your project management with AI intelligence.**
