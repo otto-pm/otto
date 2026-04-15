@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 export type JobType = "qa" | "search" | "code" | "docs";
 
@@ -11,7 +11,6 @@ export type Job = {
   type: JobType;
   question: string;
   answer: string;
-  // Store results for each type so they survive navigation
   searchResults?: { file_path: string; content: string; lines: string; language: string }[];
   codeResult?: unknown;
   docsResult?: string;
@@ -29,7 +28,23 @@ type JobsContextType = {
 const JobsContext = createContext<JobsContextType>(null!);
 
 export function JobsProvider({ children }: { children: React.ReactNode }) {
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobs, setJobs] = useState<Job[]>(() => {
+    try {
+      const saved = localStorage.getItem("otto-jobs");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      const persisted = jobs.map(j =>
+        j.status === "running" ? { ...j, status: "error" as const } : j
+      );
+      localStorage.setItem("otto-jobs", JSON.stringify(persisted));
+    } catch { /* storage full or unavailable */ }
+  }, [jobs]);
 
   const startJob = (issueId: string, issueTitle: string, question: string, type: JobType) => {
     const id = `${issueId}-${type}-${Date.now()}`;
