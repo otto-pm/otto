@@ -49,7 +49,7 @@ export default function OttoAIPanel({ issueId, issueTitle }: { issueId: string; 
   const [reposLoading, setReposLoading] = useState(false);
   const [indexing, setIndexing] = useState(false);
 
-  const [codeMode, setCodeMode] = useState<"complete" | "edit">("complete");
+  // const [codeMode, setCodeMode] = useState<"complete" | "edit">("complete");
   const [codeContext, setCodeContext] = useState("");
   const [targetFile, setTargetFile] = useState("");
   const [pushToGithub, setPushToGithub] = useState(false);
@@ -166,17 +166,17 @@ export default function OttoAIPanel({ issueId, issueTitle }: { issueId: string; 
     }
   };
 
-  const handleCodeComplete = async () => {
-    if (!codeContext.trim() || !repoName.trim() || codeLoading) return;
-    const jobId = startJob(issueId, issueTitle, codeContext, "code");
-    try {
-      const detectedLang = selectedRepo?.language?.toLowerCase() || undefined;
-      const res = await ragApi.completeCode(repoName, codeContext, detectedLang, targetFile || undefined, pushToGithub);
-      finishJob(jobId, "done", { codeResult: res });
-    } catch (err: unknown) {
-      finishJob(jobId, "error");
-    }
-  };
+  // const handleCodeComplete = async () => {
+  //   if (!codeContext.trim() || !repoName.trim() || codeLoading) return;
+  //   const jobId = startJob(issueId, issueTitle, codeContext, "code");
+  //   try {
+  //     const detectedLang = selectedRepo?.language?.toLowerCase() || undefined;
+  //     const res = await ragApi.completeCode(repoName, codeContext, detectedLang, targetFile || undefined, pushToGithub);
+  //     finishJob(jobId, "done", { codeResult: res });
+  //   } catch (err: unknown) {
+  //     finishJob(jobId, "error");
+  //   }
+  // };
 
   const handleCodeEdit = async () => {
     if (!codeContext.trim() || !repoName.trim() || codeLoading) return;
@@ -331,7 +331,7 @@ export default function OttoAIPanel({ issueId, issueTitle }: { issueId: string; 
             {/* Code */}
             {activeTab === "code" && (
               <div className="space-y-3">
-                <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-gray-100 dark:bg-white/5">
+                {/* <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-gray-100 dark:bg-white/5">
                   {(["complete", "edit"] as const).map(m => (
                     <button key={m}
                       onClick={() => { setCodeMode(m)}}
@@ -343,7 +343,7 @@ export default function OttoAIPanel({ issueId, issueTitle }: { issueId: string; 
                       {m === "complete" ? "Complete" : "Edit"}
                     </button>
                   ))}
-                </div>
+                </div> */}
 
                 <div className="rounded-2xl border border-gray-200 dark:border-white/8 bg-gray-50 dark:bg-white/[0.03] focus-within:border-violet-300 dark:focus-within:border-violet-500/50 focus-within:shadow-md focus-within:shadow-violet-100/50 dark:focus-within:shadow-violet-900/20 transition-all overflow-hidden">
                   <textarea
@@ -359,14 +359,14 @@ export default function OttoAIPanel({ issueId, issueTitle }: { issueId: string; 
                     </svg>
                     <input value={targetFile} onChange={e => setTargetFile(e.target.value)}
                       className="flex-1 bg-transparent text-xs text-gray-500 dark:text-gray-400 font-mono outline-none placeholder-gray-300 dark:placeholder-gray-500"
-                      placeholder="Target file (auto-detected if blank)" />
+                      placeholder="Target file (required)" />
                     <button
-                      onClick={codeMode === "complete" ? handleCodeComplete : handleCodeEdit}
-                      disabled={codeLoading || !codeContext.trim()}
+                      onClick={handleCodeEdit}
+                      disabled={codeLoading || !codeContext.trim() || !targetFile.trim()}
                       className="shrink-0 flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-500 to-blue-500 px-4 py-2 text-xs font-bold text-white disabled:opacity-40 hover:opacity-90 active:scale-95 transition-all shadow-md shadow-violet-300/30 dark:shadow-violet-700/30">
                       {codeLoading
                         ? <span className="flex items-center gap-1.5"><span className="animate-spin inline-block w-3 h-3 border border-white/30 border-t-white rounded-full" /> Running…</span>
-                        : codeMode === "complete" ? "Run" : "Apply"}
+                        : "Apply"}
                     </button>
                   </div>
                 </div>
